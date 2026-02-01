@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use InvalidArgumentException;
 
 class Project extends Model
 {
@@ -109,5 +110,90 @@ class Project extends Model
     public function scopeByStatus($query, ProjectStatus $status)
     {
         return $query->where('status', $status);
+    }
+
+    /**
+     * Transition to a new status with validation.
+     *
+     * @throws InvalidArgumentException
+     */
+    public function transitionTo(ProjectStatus $newStatus): void
+    {
+        if (! $this->status->canTransitionTo($newStatus)) {
+            throw new InvalidArgumentException(
+                "Ungültiger Statusübergang von '{$this->status->getLabel()}' zu '{$newStatus->getLabel()}'."
+            );
+        }
+
+        $this->update(['status' => $newStatus]);
+    }
+
+    /**
+     * Send the offer to the client.
+     */
+    public function sendOffer(): void
+    {
+        $this->transitionTo(ProjectStatus::Sent);
+        $this->update(['offer_sent_at' => now()]);
+    }
+
+    /**
+     * Mark offer as accepted by client.
+     */
+    public function acceptOffer(): void
+    {
+        $this->transitionTo(ProjectStatus::Accepted);
+        $this->update(['offer_accepted_at' => now()]);
+    }
+
+    /**
+     * Mark offer as declined by client.
+     */
+    public function declineOffer(): void
+    {
+        $this->transitionTo(ProjectStatus::Declined);
+    }
+
+    /**
+     * Start working on the project.
+     */
+    public function startProject(?string $startDate = null): void
+    {
+        $this->transitionTo(ProjectStatus::InProgress);
+        $this->update(['start_date' => $startDate ?? now()]);
+    }
+
+    /**
+     * Mark project as completed.
+     */
+    public function completeProject(?string $endDate = null): void
+    {
+        $this->transitionTo(ProjectStatus::Completed);
+        $this->update(['end_date' => $endDate ?? now()]);
+    }
+
+    /**
+     * Reopen a completed project.
+     */
+    public function reopenProject(): void
+    {
+        $this->transitionTo(ProjectStatus::InProgress);
+        $this->update(['end_date' => null]);
+    }
+
+    /**
+     * Cancel the project.
+     */
+    public function cancel(): void
+    {
+        $this->transitionTo(ProjectStatus::Cancelled);
+    }
+
+    /**
+     * Check if project can be invoiced.
+     */
+    public function canBeInvoiced(): bool
+    {
+        return $this->status->isActive() || $this->status === ProjectStatus::Completed;
     }
 }

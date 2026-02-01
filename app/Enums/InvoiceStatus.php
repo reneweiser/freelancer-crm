@@ -34,4 +34,33 @@ enum InvoiceStatus: string implements HasColor, HasLabel
             self::Cancelled => 'gray',
         };
     }
+
+    /**
+     * @return array<self>
+     */
+    public function allowedTransitions(): array
+    {
+        return match ($this) {
+            self::Draft => [self::Sent, self::Cancelled],
+            self::Sent => [self::Paid, self::Overdue, self::Cancelled],
+            self::Overdue => [self::Paid, self::Cancelled],
+            self::Paid => [],
+            self::Cancelled => [],
+        };
+    }
+
+    public function canTransitionTo(self $target): bool
+    {
+        return in_array($target, $this->allowedTransitions(), true);
+    }
+
+    public function isTerminal(): bool
+    {
+        return in_array($this, [self::Paid, self::Cancelled], true);
+    }
+
+    public function isUnpaid(): bool
+    {
+        return in_array($this, [self::Sent, self::Overdue], true);
+    }
 }

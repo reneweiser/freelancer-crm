@@ -40,4 +40,35 @@ enum ProjectStatus: string implements HasColor, HasLabel
             self::Cancelled => 'danger',
         };
     }
+
+    /**
+     * @return array<self>
+     */
+    public function allowedTransitions(): array
+    {
+        return match ($this) {
+            self::Draft => [self::Sent, self::Cancelled],
+            self::Sent => [self::Accepted, self::Declined, self::Cancelled],
+            self::Accepted => [self::InProgress, self::Cancelled],
+            self::Declined => [],
+            self::InProgress => [self::Completed, self::Cancelled],
+            self::Completed => [self::InProgress],
+            self::Cancelled => [],
+        };
+    }
+
+    public function canTransitionTo(self $target): bool
+    {
+        return in_array($target, $this->allowedTransitions(), true);
+    }
+
+    public function isTerminal(): bool
+    {
+        return in_array($this, [self::Declined, self::Cancelled], true);
+    }
+
+    public function isActive(): bool
+    {
+        return in_array($this, [self::Accepted, self::InProgress], true);
+    }
 }
