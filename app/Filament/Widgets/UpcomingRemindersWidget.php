@@ -14,7 +14,7 @@ class UpcomingRemindersWidget extends Widget
 
     protected string $view = 'filament.widgets.upcoming-reminders-widget';
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
 
     public function getReminders(): Collection
     {
