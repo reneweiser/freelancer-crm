@@ -70,6 +70,11 @@ class Project extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class)->orderByDesc('started_at');
+    }
+
     /**
      * Get total value from items or fixed price.
      */
@@ -195,5 +200,49 @@ class Project extends Model
     public function canBeInvoiced(): bool
     {
         return $this->status->isActive() || $this->status === ProjectStatus::Completed;
+    }
+
+    /**
+     * Check if this is an hourly project.
+     */
+    public function isHourly(): bool
+    {
+        return $this->type === ProjectType::Hourly;
+    }
+
+    /**
+     * Get total tracked hours (all entries).
+     */
+    public function getTotalHoursAttribute(): float
+    {
+        return round($this->timeEntries()->sum('duration_minutes') / 60, 2);
+    }
+
+    /**
+     * Get total billable hours.
+     */
+    public function getBillableHoursAttribute(): float
+    {
+        return round($this->timeEntries()->billable()->sum('duration_minutes') / 60, 2);
+    }
+
+    /**
+     * Get unbilled hours (billable but not yet invoiced).
+     */
+    public function getUnbilledHoursAttribute(): float
+    {
+        return round($this->timeEntries()->billable()->unbilled()->sum('duration_minutes') / 60, 2);
+    }
+
+    /**
+     * Get unbilled amount based on hourly rate.
+     */
+    public function getUnbilledAmountAttribute(): float
+    {
+        if (! $this->isHourly() || $this->hourly_rate === null) {
+            return 0;
+        }
+
+        return round($this->unbilled_hours * (float) $this->hourly_rate, 2);
     }
 }

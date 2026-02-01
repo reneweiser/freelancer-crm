@@ -69,20 +69,14 @@ class InvoiceCreationService
 
     protected function addTimeEntriesLineItem(Invoice $invoice, Project $project, float $vatRate, int $position): void
     {
-        // Time entries will be implemented in Phase 4
-        // For now, this is a placeholder for the hourly project handling
         if ($project->hourly_rate === null) {
             return;
         }
 
-        // Check if project has time entries relation (will be added in Phase 4)
-        if (! method_exists($project, 'timeEntries')) {
-            return;
-        }
-
         $unbilledTime = $project->timeEntries()
-            ->where('billable', true)
-            ->whereNull('invoice_id')
+            ->billable()
+            ->unbilled()
+            ->orderBy('started_at')
             ->get();
 
         if ($unbilledTime->isEmpty()) {
@@ -92,8 +86,16 @@ class InvoiceCreationService
         $totalMinutes = $unbilledTime->sum('duration_minutes');
         $totalHours = round($totalMinutes / 60, 2);
 
+        $earliestDate = $unbilledTime->min('started_at');
+        $latestDate = $unbilledTime->max('started_at');
+
+        $dateRange = $earliestDate->format('d.m.Y');
+        if ($earliestDate->format('Y-m-d') !== $latestDate->format('Y-m-d')) {
+            $dateRange .= ' - '.$latestDate->format('d.m.Y');
+        }
+
         $invoice->items()->create([
-            'description' => 'Arbeitszeit',
+            'description' => "Arbeitszeit ({$dateRange})",
             'quantity' => $totalHours,
             'unit' => 'Stunden',
             'unit_price' => $project->hourly_rate,
@@ -101,7 +103,6 @@ class InvoiceCreationService
             'position' => $position,
         ]);
 
-        // Mark time entries as invoiced
         $unbilledTime->each(fn ($entry) => $entry->update(['invoice_id' => $invoice->id]));
     }
 }
