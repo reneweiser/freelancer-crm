@@ -2,7 +2,10 @@
 
 namespace App\Filament\Pages;
 
+use App\Services\EmailConfigurationService;
+use App\Services\SettingsService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -117,6 +120,112 @@ class Settings extends Page
                                 ->rows(3)
                                 ->helperText('Wird am Ende jeder Rechnung angezeigt')
                                 ->columnSpanFull(),
+                        ])
+                        ->columns(2),
+
+                    Section::make('E-Mail-Konfiguration')
+                        ->description('SMTP-Einstellungen für den E-Mail-Versand')
+                        ->schema([
+                            TextInput::make('email_host')
+                                ->label('SMTP-Server')
+                                ->placeholder('smtp.example.com')
+                                ->maxLength(255),
+                            TextInput::make('email_port')
+                                ->label('Port')
+                                ->numeric()
+                                ->default(587)
+                                ->minValue(1)
+                                ->maxValue(65535),
+                            Select::make('email_encryption')
+                                ->label('Verschlüsselung')
+                                ->options([
+                                    'tls' => 'TLS (empfohlen)',
+                                    'ssl' => 'SSL',
+                                    '' => 'Keine',
+                                ])
+                                ->default('tls'),
+                            TextInput::make('email_username')
+                                ->label('Benutzername')
+                                ->maxLength(255),
+                            TextInput::make('email_password')
+                                ->label('Passwort')
+                                ->password()
+                                ->revealable()
+                                ->dehydrateStateUsing(fn ($state) => $state ? encrypt($state) : null)
+                                ->maxLength(255),
+                            TextInput::make('email_from_name')
+                                ->label('Absendername')
+                                ->placeholder('Max Mustermann')
+                                ->maxLength(255),
+                            TextInput::make('email_from_address')
+                                ->label('Absenderadresse')
+                                ->email()
+                                ->placeholder('rechnung@example.com')
+                                ->maxLength(255),
+                            Actions::make([
+                                Action::make('testEmail')
+                                    ->label('Test-E-Mail senden')
+                                    ->icon('heroicon-o-paper-airplane')
+                                    ->color('gray')
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Test-E-Mail senden')
+                                    ->modalDescription('Eine Test-E-Mail wird an Ihre Benutzer-E-Mail-Adresse gesendet.')
+                                    ->action(function () {
+                                        // First save the current settings
+                                        $data = $this->form->getState();
+                                        Auth::user()->settingsService()->setMany($data);
+
+                                        $settings = new SettingsService(Auth::user());
+                                        $config = new EmailConfigurationService($settings);
+                                        $result = $config->sendTestEmail(Auth::user()->email);
+
+                                        if ($result['success']) {
+                                            Notification::make()
+                                                ->title('Erfolg')
+                                                ->body($result['message'])
+                                                ->success()
+                                                ->send();
+                                        } else {
+                                            Notification::make()
+                                                ->title('Fehler')
+                                                ->body($result['message'])
+                                                ->danger()
+                                                ->persistent()
+                                                ->send();
+                                        }
+                                    }),
+                            ])->columnSpanFull(),
+                        ])
+                        ->columns(2),
+
+                    Section::make('E-Mail-Vorlagen')
+                        ->description('Vorlagen für automatische E-Mails. Platzhalter: {business_name}, {client_name}, {invoice_number}, {invoice_total}, {due_date}, {offer_number}')
+                        ->collapsed()
+                        ->schema([
+                            TextInput::make('email_template_offer_subject')
+                                ->label('Angebot: Betreff')
+                                ->placeholder('Angebot von {business_name}')
+                                ->maxLength(255),
+                            Textarea::make('email_template_offer_body')
+                                ->label('Angebot: Text')
+                                ->rows(4)
+                                ->placeholder("Sehr geehrte/r {client_name},\n\nanbei erhalten Sie unser Angebot.\n\nMit freundlichen Grüßen\n{business_name}"),
+                            TextInput::make('email_template_invoice_subject')
+                                ->label('Rechnung: Betreff')
+                                ->placeholder('Rechnung {invoice_number} von {business_name}')
+                                ->maxLength(255),
+                            Textarea::make('email_template_invoice_body')
+                                ->label('Rechnung: Text')
+                                ->rows(4)
+                                ->placeholder("Sehr geehrte/r {client_name},\n\nanbei erhalten Sie die Rechnung {invoice_number}.\n\nBitte überweisen Sie den Betrag von {invoice_total} bis zum {due_date}.\n\nMit freundlichen Grüßen\n{business_name}"),
+                            TextInput::make('email_template_reminder_subject')
+                                ->label('Zahlungserinnerung: Betreff')
+                                ->placeholder('Zahlungserinnerung: Rechnung {invoice_number}')
+                                ->maxLength(255),
+                            Textarea::make('email_template_reminder_body')
+                                ->label('Zahlungserinnerung: Text')
+                                ->rows(4)
+                                ->placeholder("Sehr geehrte/r {client_name},\n\nwir möchten Sie freundlich an die ausstehende Zahlung für Rechnung {invoice_number} erinnern.\n\nMit freundlichen Grüßen\n{business_name}"),
                         ])
                         ->columns(2),
                 ])

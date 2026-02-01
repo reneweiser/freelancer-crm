@@ -7,6 +7,7 @@ use App\Filament\Resources\Projects\Pages\EditProject;
 use App\Filament\Resources\Projects\Pages\ListProjects;
 use App\Filament\Resources\Projects\Schemas\ProjectForm;
 use App\Filament\Resources\Projects\Tables\ProjectsTable;
+use App\Filament\Resources\Shared\RelationManagers\EmailLogsRelationManager;
 use App\Models\Project;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -44,6 +45,7 @@ class ProjectResource extends Resource
     {
         return [
             RelationManagers\TimeEntriesRelationManager::class,
+            EmailLogsRelationManager::class,
         ];
     }
 

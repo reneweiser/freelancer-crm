@@ -3,8 +3,12 @@
 namespace App\Filament\Resources\Invoices\Pages;
 
 use App\Enums\InvoiceStatus;
+use App\Filament\Resources\Clients\ClientResource;
 use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Models\Invoice;
+use App\Services\EmailConfigurationService;
+use App\Services\EmailService;
+use App\Services\SettingsService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
@@ -23,6 +27,8 @@ class EditInvoice extends EditRecord
     {
         return [
             $this->getDownloadPdfAction(),
+            $this->getSendInvoiceEmailAction(),
+            $this->getSendPaymentReminderAction(),
             $this->getMarkSentAction(),
             $this->getMarkPaidAction(),
             ActionGroup::make([
@@ -42,6 +48,109 @@ class EditInvoice extends EditRecord
             ->color('gray')
             ->url(fn (Invoice $record): string => route('pdf.invoice.download', $record))
             ->openUrlInNewTab();
+    }
+
+    protected function getSendInvoiceEmailAction(): Action
+    {
+        return Action::make('sendInvoiceEmail')
+            ->label('Per E-Mail senden')
+            ->icon('heroicon-o-envelope')
+            ->color('success')
+            ->requiresConfirmation()
+            ->modalHeading('Rechnung per E-Mail senden')
+            ->modalDescription(fn (Invoice $record) => $record->client->email
+                ? "Die Rechnung wird an {$record->client->email} gesendet."
+                : 'Der Kunde hat keine E-Mail-Adresse hinterlegt.')
+            ->visible(function (Invoice $record): bool {
+                $settings = new SettingsService(auth()->user());
+                $config = new EmailConfigurationService($settings);
+
+                return $config->isConfigured() && in_array($record->status, [
+                    InvoiceStatus::Draft,
+                    InvoiceStatus::Sent,
+                ]);
+            })
+            ->disabled(fn (Invoice $record): bool => ! $record->client->email)
+            ->action(function (Invoice $record): void {
+                if (! $record->client->email) {
+                    Notification::make()
+                        ->title('Keine E-Mail-Adresse')
+                        ->body('Bitte hinterlegen Sie eine E-Mail-Adresse beim Kunden.')
+                        ->warning()
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('editClient')
+                                ->label('Kunde bearbeiten')
+                                ->url(ClientResource::getUrl('edit', ['record' => $record->client])),
+                        ])
+                        ->send();
+
+                    return;
+                }
+
+                $settings = new SettingsService(auth()->user());
+                $emailService = new EmailService(
+                    new EmailConfigurationService($settings),
+                    $settings
+                );
+
+                $emailService->sendInvoice($record);
+
+                Notification::make()
+                    ->title('E-Mail wird gesendet')
+                    ->body("Die Rechnung wird an {$record->client->email} gesendet.")
+                    ->success()
+                    ->send();
+            });
+    }
+
+    protected function getSendPaymentReminderAction(): Action
+    {
+        return Action::make('sendPaymentReminder')
+            ->label('Zahlungserinnerung senden')
+            ->icon('heroicon-o-bell-alert')
+            ->color('warning')
+            ->requiresConfirmation()
+            ->modalHeading('Zahlungserinnerung senden')
+            ->modalDescription(fn (Invoice $record) => $record->client->email
+                ? "Eine Zahlungserinnerung wird an {$record->client->email} gesendet."
+                : 'Der Kunde hat keine E-Mail-Adresse hinterlegt.')
+            ->visible(function (Invoice $record): bool {
+                $settings = new SettingsService(auth()->user());
+                $config = new EmailConfigurationService($settings);
+
+                return $config->isConfigured() && $record->status->isUnpaid();
+            })
+            ->disabled(fn (Invoice $record): bool => ! $record->client->email)
+            ->action(function (Invoice $record): void {
+                if (! $record->client->email) {
+                    Notification::make()
+                        ->title('Keine E-Mail-Adresse')
+                        ->body('Bitte hinterlegen Sie eine E-Mail-Adresse beim Kunden.')
+                        ->warning()
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('editClient')
+                                ->label('Kunde bearbeiten')
+                                ->url(ClientResource::getUrl('edit', ['record' => $record->client])),
+                        ])
+                        ->send();
+
+                    return;
+                }
+
+                $settings = new SettingsService(auth()->user());
+                $emailService = new EmailService(
+                    new EmailConfigurationService($settings),
+                    $settings
+                );
+
+                $emailService->sendPaymentReminder($record);
+
+                Notification::make()
+                    ->title('Zahlungserinnerung wird gesendet')
+                    ->body("Die Zahlungserinnerung wird an {$record->client->email} gesendet.")
+                    ->success()
+                    ->send();
+            });
     }
 
     protected function getMarkSentAction(): Action

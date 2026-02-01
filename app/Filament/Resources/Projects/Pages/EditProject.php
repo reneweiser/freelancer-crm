@@ -3,9 +3,12 @@
 namespace App\Filament\Resources\Projects\Pages;
 
 use App\Enums\ProjectStatus;
+use App\Filament\Resources\Clients\ClientResource;
 use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Filament\Resources\Projects\ProjectResource;
 use App\Models\Project;
+use App\Services\EmailConfigurationService;
+use App\Services\EmailService;
 use App\Services\InvoiceCreationService;
 use App\Services\SettingsService;
 use Filament\Actions\Action;
@@ -25,6 +28,7 @@ class EditProject extends EditRecord
     {
         return [
             $this->getDownloadOfferPdfAction(),
+            $this->getSendOfferEmailAction(),
             $this->getSendOfferAction(),
             $this->getAcceptOfferAction(),
             $this->getDeclineOfferAction(),
@@ -54,6 +58,59 @@ class EditProject extends EditRecord
                 ProjectStatus::Sent,
                 ProjectStatus::Accepted,
             ]));
+    }
+
+    protected function getSendOfferEmailAction(): Action
+    {
+        return Action::make('sendOfferEmail')
+            ->label('Per E-Mail senden')
+            ->icon('heroicon-o-envelope')
+            ->color('success')
+            ->requiresConfirmation()
+            ->modalHeading('Angebot per E-Mail senden')
+            ->modalDescription(fn (Project $record) => $record->client->email
+                ? "Das Angebot wird an {$record->client->email} gesendet."
+                : 'Der Kunde hat keine E-Mail-Adresse hinterlegt.')
+            ->visible(function (Project $record): bool {
+                $settings = new SettingsService(auth()->user());
+                $config = new EmailConfigurationService($settings);
+
+                return $config->isConfigured() && in_array($record->status, [
+                    ProjectStatus::Draft,
+                    ProjectStatus::Sent,
+                ]);
+            })
+            ->disabled(fn (Project $record): bool => ! $record->client->email)
+            ->action(function (Project $record): void {
+                if (! $record->client->email) {
+                    Notification::make()
+                        ->title('Keine E-Mail-Adresse')
+                        ->body('Bitte hinterlegen Sie eine E-Mail-Adresse beim Kunden.')
+                        ->warning()
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('editClient')
+                                ->label('Kunde bearbeiten')
+                                ->url(ClientResource::getUrl('edit', ['record' => $record->client])),
+                        ])
+                        ->send();
+
+                    return;
+                }
+
+                $settings = new SettingsService(auth()->user());
+                $emailService = new EmailService(
+                    new EmailConfigurationService($settings),
+                    $settings
+                );
+
+                $emailService->sendOffer($record);
+
+                Notification::make()
+                    ->title('E-Mail wird gesendet')
+                    ->body("Das Angebot wird an {$record->client->email} gesendet.")
+                    ->success()
+                    ->send();
+            });
     }
 
     protected function getSendOfferAction(): Action

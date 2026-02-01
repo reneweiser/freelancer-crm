@@ -7,6 +7,7 @@ use App\Filament\Resources\Invoices\Pages\EditInvoice;
 use App\Filament\Resources\Invoices\Pages\ListInvoices;
 use App\Filament\Resources\Invoices\Schemas\InvoiceForm;
 use App\Filament\Resources\Invoices\Tables\InvoicesTable;
+use App\Filament\Resources\Shared\RelationManagers\EmailLogsRelationManager;
 use App\Models\Invoice;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -43,7 +44,7 @@ class InvoiceResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            EmailLogsRelationManager::class,
         ];
     }
 
