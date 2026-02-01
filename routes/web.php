@@ -4,8 +4,8 @@ use App\Http\Controllers\PdfController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
-});
+    return view('landing');
+})->name('home');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/pdf/invoice/{invoice}/download', [PdfController::class, 'downloadInvoice'])
