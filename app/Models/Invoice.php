@@ -77,6 +77,11 @@ class Invoice extends Model
         return $this->morphMany(EmailLog::class, 'emailable')->orderByDesc('created_at');
     }
 
+    public function reminders(): MorphMany
+    {
+        return $this->morphMany(Reminder::class, 'remindable');
+    }
+
     /**
      * Generate next invoice number for the current year.
      * Format: YYYY-NNN (e.g., 2026-001)

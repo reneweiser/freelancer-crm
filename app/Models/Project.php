@@ -81,6 +81,11 @@ class Project extends Model
         return $this->morphMany(EmailLog::class, 'emailable')->orderByDesc('created_at');
     }
 
+    public function reminders(): MorphMany
+    {
+        return $this->morphMany(Reminder::class, 'remindable');
+    }
+
     /**
      * Get total value from items or fixed price.
      */
