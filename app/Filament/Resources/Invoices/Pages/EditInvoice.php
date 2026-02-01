@@ -22,6 +22,7 @@ class EditInvoice extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            $this->getDownloadPdfAction(),
             $this->getMarkSentAction(),
             $this->getMarkPaidAction(),
             ActionGroup::make([
@@ -31,6 +32,16 @@ class EditInvoice extends EditRecord
                 RestoreAction::make(),
             ])->icon('heroicon-o-ellipsis-vertical'),
         ];
+    }
+
+    protected function getDownloadPdfAction(): Action
+    {
+        return Action::make('downloadPdf')
+            ->label('PDF herunterladen')
+            ->icon('heroicon-o-document-arrow-down')
+            ->color('gray')
+            ->url(fn (Invoice $record): string => route('pdf.invoice.download', $record))
+            ->openUrlInNewTab();
     }
 
     protected function getMarkSentAction(): Action

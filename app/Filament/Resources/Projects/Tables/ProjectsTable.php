@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Projects\Tables;
 
 use App\Enums\ProjectStatus;
 use App\Enums\ProjectType;
+use App\Models\Project;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -76,6 +78,17 @@ class ProjectsTable
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('downloadOffer')
+                    ->label('Angebot PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('gray')
+                    ->url(fn (Project $record): string => route('pdf.offer.download', $record))
+                    ->openUrlInNewTab()
+                    ->visible(fn (Project $record): bool => in_array($record->status, [
+                        ProjectStatus::Draft,
+                        ProjectStatus::Sent,
+                        ProjectStatus::Accepted,
+                    ])),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

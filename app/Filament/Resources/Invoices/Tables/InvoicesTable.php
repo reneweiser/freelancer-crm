@@ -91,6 +91,12 @@ class InvoicesTable
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('downloadPdf')
+                    ->label('PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('gray')
+                    ->url(fn (Invoice $record): string => route('pdf.invoice.download', $record))
+                    ->openUrlInNewTab(),
                 Action::make('markPaid')
                     ->label('Bezahlt')
                     ->icon('heroicon-o-check-circle')

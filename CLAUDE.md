@@ -80,6 +80,13 @@ app/Filament/
 
 Invoice numbers: `YYYY-NNN` format (e.g., 2026-001), reset yearly with database locking for concurrent access.
 
+### PDF Generation (DomPDF)
+
+- PDF templates are in `resources/views/pdf/` (invoice.blade.php, offer.blade.php)
+- Use `@page { margin: 25mm 20mm 25mm 25mm !important; }` for margins - the `!important` is required for DomPDF to apply them
+- Use `page-break-after: always;` for page breaks
+- DomPDF has limited CSS support: use tables for layout, no flexbox/grid
+
 ## Production Deployment
 
 Build immutable Docker images (no code volume mounts):

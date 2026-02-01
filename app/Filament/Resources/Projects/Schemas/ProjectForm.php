@@ -128,6 +128,7 @@ class ProjectForm
                             ])
                             ->columns(5)
                             ->reorderable()
+                            ->orderColumn('position')
                             ->collapsible()
                             ->defaultItems(1)
                             ->addActionLabel('Position hinzufügen')

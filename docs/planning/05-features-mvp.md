@@ -245,13 +245,13 @@ Everything else is "nice to have" for later iterations.
 - [ ] Invoice number auto-generation
 - [ ] Invoice totals calculation
 - [ ] Create invoice from project
-- [ ] Time entry CRUD (for hourly projects)
-- [ ] Invoice PDF generation
+- [x] Time entry CRUD (for hourly projects)
+- [x] Invoice PDF generation
 - [ ] Invoice export (CSV/Excel)
 - [ ] Dashboard with key stats
 
 ### Nice to Have (Post-MVP)
-- [ ] Offer PDF generation
+- [x] Offer PDF generation
 - [ ] Email sending
 - [ ] Reminders system
 - [ ] Recurring tasks

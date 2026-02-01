@@ -139,6 +139,7 @@ class InvoiceForm
                             ])
                             ->columns(6)
                             ->reorderable()
+                            ->orderColumn('position')
                             ->defaultItems(1)
                             ->addActionLabel('Position hinzufügen')
                             ->live()

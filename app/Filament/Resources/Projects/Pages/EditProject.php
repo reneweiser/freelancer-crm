@@ -24,6 +24,7 @@ class EditProject extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            $this->getDownloadOfferPdfAction(),
             $this->getSendOfferAction(),
             $this->getAcceptOfferAction(),
             $this->getDeclineOfferAction(),
@@ -38,6 +39,21 @@ class EditProject extends EditRecord
                 RestoreAction::make(),
             ])->icon('heroicon-o-ellipsis-vertical'),
         ];
+    }
+
+    protected function getDownloadOfferPdfAction(): Action
+    {
+        return Action::make('downloadOfferPdf')
+            ->label('Angebot PDF')
+            ->icon('heroicon-o-document-arrow-down')
+            ->color('gray')
+            ->url(fn (Project $record): string => route('pdf.offer.download', $record))
+            ->openUrlInNewTab()
+            ->visible(fn (Project $record): bool => in_array($record->status, [
+                ProjectStatus::Draft,
+                ProjectStatus::Sent,
+                ProjectStatus::Accepted,
+            ]));
     }
 
     protected function getSendOfferAction(): Action
@@ -187,8 +203,9 @@ class EditProject extends EditRecord
                     ->title('Rechnung erstellt')
                     ->body("Rechnung {$invoice->number} wurde erstellt.")
                     ->actions([
-                        \Filament\Notifications\Actions\Action::make('view')
+                        Action::make('view')
                             ->label('Anzeigen')
+                            ->button()
                             ->url(InvoiceResource::getUrl('edit', ['record' => $invoice])),
                     ])
                     ->send();
