@@ -3,11 +3,14 @@
 namespace App\Filament\Resources\Invoices\Tables;
 
 use App\Enums\InvoiceStatus;
+use App\Filament\Exports\InvoiceExporter;
 use App\Models\Invoice;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
+use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
@@ -111,6 +114,26 @@ class InvoicesTable
                     ])
                     ->action(fn (Invoice $record, array $data) => $record->markAsPaid($data))
                     ->visible(fn (Invoice $record) => $record->status === InvoiceStatus::Sent || $record->status === InvoiceStatus::Overdue),
+            ])
+            ->headerActions([
+                ExportAction::make()
+                    ->exporter(InvoiceExporter::class)
+                    ->label('Exportieren')
+                    ->formats([
+                        ExportFormat::Xlsx,
+                        ExportFormat::Csv,
+                    ])
+                    ->modifyQueryUsing(function (Builder $query, array $options): Builder {
+                        return $query
+                            ->when(
+                                $options['from'] ?? null,
+                                fn (Builder $q, $date) => $q->whereDate('issued_at', '>=', $date)
+                            )
+                            ->when(
+                                $options['until'] ?? null,
+                                fn (Builder $q, $date) => $q->whereDate('issued_at', '<=', $date)
+                            );
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
