@@ -269,6 +269,57 @@ describe('CheckOverdueInvoices Command', function () {
     });
 });
 
+describe('Reminder Notifications', function () {
+    it('identifies reminders needing notification', function () {
+        // Due and not notified
+        Reminder::factory()->create([
+            'user_id' => $this->user->id,
+            'due_at' => now()->subMinutes(5),
+            'notified_at' => null,
+        ]);
+
+        // Due but already notified
+        Reminder::factory()->create([
+            'user_id' => $this->user->id,
+            'due_at' => now()->subMinutes(5),
+            'notified_at' => now(),
+        ]);
+
+        // Not yet due
+        Reminder::factory()->create([
+            'user_id' => $this->user->id,
+            'due_at' => now()->addHour(),
+            'notified_at' => null,
+        ]);
+
+        expect(Reminder::needsNotification()->count())->toBe(1);
+    });
+
+    it('excludes snoozed reminders from notification', function () {
+        Reminder::factory()->create([
+            'user_id' => $this->user->id,
+            'due_at' => now()->subMinutes(5),
+            'snoozed_until' => now()->addHour(),
+            'notified_at' => null,
+        ]);
+
+        expect(Reminder::needsNotification()->count())->toBe(0);
+    });
+
+    it('processes due reminders via service', function () {
+        Reminder::factory()->count(2)->create([
+            'user_id' => $this->user->id,
+            'due_at' => now()->subMinutes(5),
+            'notified_at' => null,
+        ]);
+
+        $service = app(ReminderService::class);
+        $count = $service->processDueReminders();
+
+        expect($count)->toBe(2);
+    });
+});
+
 describe('Model Relationships', function () {
     it('client has reminders relationship', function () {
         $reminder = Reminder::factory()->create([

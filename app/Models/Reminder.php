@@ -24,6 +24,7 @@ class Reminder extends Model
         'due_at',
         'snoozed_until',
         'completed_at',
+        'notified_at',
         'recurrence',
         'priority',
         'is_system',
@@ -36,6 +37,7 @@ class Reminder extends Model
             'due_at' => 'datetime',
             'snoozed_until' => 'datetime',
             'completed_at' => 'datetime',
+            'notified_at' => 'datetime',
             'recurrence' => ReminderRecurrence::class,
             'priority' => ReminderPriority::class,
             'is_system' => 'boolean',
@@ -102,6 +104,18 @@ class Reminder extends Model
         return $query
             ->pending()
             ->where('due_at', '<', now()->startOfDay());
+    }
+
+    public function scopeNeedsNotification(Builder $query): Builder
+    {
+        return $query
+            ->pending()
+            ->whereNull('notified_at')
+            ->where(function ($q) {
+                $q->whereNull('snoozed_until')
+                    ->orWhere('snoozed_until', '<=', now());
+            })
+            ->where('due_at', '<=', now());
     }
 
     // Attributes

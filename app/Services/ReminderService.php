@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Enums\ReminderPriority;
 use App\Enums\ReminderRecurrence;
+use App\Jobs\SendReminderNotification;
 use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\Reminder;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class ReminderService
 {
@@ -95,5 +97,27 @@ class ReminderService
             'is_system' => true,
             'system_type' => 'offer_followup',
         ]);
+    }
+
+    /**
+     * Process due reminders and dispatch notifications.
+     * Called by the scheduler every minute.
+     */
+    public function processDueReminders(): int
+    {
+        $dueReminders = Reminder::withoutGlobalScope('user')
+            ->needsNotification()
+            ->with(['user', 'remindable'])
+            ->get();
+
+        foreach ($dueReminders as $reminder) {
+            SendReminderNotification::dispatch($reminder);
+        }
+
+        if ($dueReminders->count() > 0) {
+            Log::info("Dispatched notifications for {$dueReminders->count()} due reminders");
+        }
+
+        return $dueReminders->count();
     }
 }

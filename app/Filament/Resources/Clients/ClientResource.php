@@ -7,6 +7,7 @@ use App\Filament\Resources\Clients\Pages\EditClient;
 use App\Filament\Resources\Clients\Pages\ListClients;
 use App\Filament\Resources\Clients\Schemas\ClientForm;
 use App\Filament\Resources\Clients\Tables\ClientsTable;
+use App\Filament\Resources\Shared\RelationManagers\RecurringTasksRelationManager;
 use App\Filament\Resources\Shared\RelationManagers\RemindersRelationManager;
 use App\Models\Client;
 use BackedEnum;
@@ -45,6 +46,7 @@ class ClientResource extends Resource
     {
         return [
             RemindersRelationManager::class,
+            RecurringTasksRelationManager::class,
         ];
     }
 

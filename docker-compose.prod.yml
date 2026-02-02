@@ -35,6 +35,44 @@ services:
       retries: 3
       start_period: 30s
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      AUTORUN_ENABLED: "false"
+      PHP_MEMORY_LIMIT: "128M"
+    env_file:
+      - .env.prod
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - app-data:/var/www/html/storage/app
+    networks:
+      - crm-network
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
+    environment:
+      AUTORUN_ENABLED: "false"
+      PHP_MEMORY_LIMIT: "128M"
+    env_file:
+      - .env.prod
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - app-data:/var/www/html/storage/app
+    networks:
+      - crm-network
+
   mariadb:
     image: mariadb:11
     restart: unless-stopped

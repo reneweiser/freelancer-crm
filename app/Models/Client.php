@@ -56,6 +56,11 @@ class Client extends Model
         return $this->morphMany(Reminder::class, 'remindable');
     }
 
+    public function recurringTasks(): HasMany
+    {
+        return $this->hasMany(RecurringTask::class);
+    }
+
     /**
      * Get display name (company name or contact name for individuals).
      */
@@ -65,7 +70,7 @@ class Client extends Model
             return $this->company_name;
         }
 
-        return $this->contact_name;
+        return $this->contact_name ?: "Kunde #{$this->id}";
     }
 
     /**

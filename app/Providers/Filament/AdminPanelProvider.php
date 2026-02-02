@@ -36,6 +36,8 @@ class AdminPanelProvider extends PanelProvider
             ->font('Space Grotesk')
             ->defaultThemeMode(ThemeMode::Dark)
             ->sidebarCollapsibleOnDesktop()
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('10s')
             ->colors([
                 'danger' => Color::Rose,
                 'gray' => Color::Slate,
