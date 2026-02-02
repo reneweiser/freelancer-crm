@@ -17,7 +17,6 @@
                 :href="$this->getCreateProjectUrl()"
                 tag="a"
                 icon="heroicon-o-folder-plus"
-                color="success"
             >
                 Neues Projekt
             </x-filament::button>
@@ -26,7 +25,6 @@
                 :href="$this->getCreateInvoiceUrl()"
                 tag="a"
                 icon="heroicon-o-document-plus"
-                color="warning"
             >
                 Neue Rechnung
             </x-filament::button>

@@ -37,7 +37,7 @@ class StatsOverviewWidget extends BaseWidget
 
         return Stat::make('Offene Rechnungen', $count)
             ->description(Number::currency($total, 'EUR', 'de_DE'))
-            ->color('warning');
+            ->color('primary');
     }
 
     protected function getMonthlyRevenueStat(int $userId): Stat
