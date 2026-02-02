@@ -157,4 +157,4 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 ## License
 
-Proprietary - All rights reserved.
+This project is open source and available under the [MIT License](LICENSE).
