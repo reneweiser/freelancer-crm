@@ -148,12 +148,76 @@ Detailed specifications in `docs/planning/`:
 
 ## Production Deployment
 
-Uses immutable Docker images with `serversideup/php:8.4-fpm-nginx`:
+Uses immutable Docker images with `serversideup/php:8.4-fpm-nginx`. The image includes Laravel automations that run migrations and cache configuration on startup.
+
+### Prerequisites
+
+- Docker & Docker Compose
+- A server with at least 1GB RAM
+
+### 1. Configure Environment
 
 ```bash
+# Copy the example environment file
+cp .env.prod.example .env.prod
+
+# Generate an application key
+echo "APP_KEY=base64:$(openssl rand -base64 32)" >> .env.prod
+```
+
+Edit `.env.prod` and configure:
+
+| Variable | Description |
+|----------|-------------|
+| `APP_URL` | Your domain (e.g., `https://crm.example.com`) |
+| `DB_PASSWORD` | Secure password for the database user |
+| `DB_ROOT_PASSWORD` | Secure password for MariaDB root |
+| `MAIL_*` | SMTP settings for sending invoices |
+
+### 2. Build and Deploy
+
+```bash
+# Build the Docker image
+docker compose -f docker-compose.prod.yml build
+
+# Start the services
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+```
+
+On first startup, Laravel automations will:
+- Run database migrations
+- Cache configuration, routes, views, and events
+- Create the storage symlink
+
+### 3. Create Admin User
+
+```bash
+docker compose -f docker-compose.prod.yml exec app php artisan make:filament-user
+```
+
+### Management Commands
+
+```bash
+# View logs
+docker compose -f docker-compose.prod.yml logs -f app
+
+# Run artisan commands
+docker compose -f docker-compose.prod.yml exec app php artisan <command>
+
+# Stop services
+docker compose -f docker-compose.prod.yml down
+
+# Update deployment
+git pull
 docker compose -f docker-compose.prod.yml build
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
+
+### Persistent Data
+
+The following data persists across container recreations:
+- `app-data` volume: Uploaded files (`storage/app`)
+- `mariadb-data` volume: Database
 
 ## License
 
