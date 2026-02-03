@@ -4,17 +4,22 @@ namespace App\Filament\Pages;
 
 use App\Services\EmailConfigurationService;
 use App\Services\SettingsService;
+use App\Services\WebhookService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
 
 /**
  * @property-read Schema $form
@@ -151,8 +156,12 @@ class Settings extends Page
                                 ->label('Passwort')
                                 ->password()
                                 ->revealable()
-                                ->dehydrateStateUsing(fn ($state) => $state ? encrypt($state) : null)
-                                ->maxLength(255),
+                                ->formatStateUsing(fn () => null)
+                                ->dehydrateStateUsing(fn ($state) => $state
+                                    ? encrypt($state)
+                                    : Auth::user()->settingsService()->get('email_password'))
+                                ->maxLength(255)
+                                ->placeholder('••••••••'),
                             TextInput::make('email_from_name')
                                 ->label('Absendername')
                                 ->placeholder('Max Mustermann')
@@ -228,6 +237,52 @@ class Settings extends Page
                                 ->placeholder("Sehr geehrte/r {client_name},\n\nwir möchten Sie freundlich an die ausstehende Zahlung für Rechnung {invoice_number} erinnern.\n\nMit freundlichen Grüßen\n{business_name}"),
                         ])
                         ->columns(2),
+
+                    Section::make('Webhooks')
+                        ->description('Sende Benachrichtigungen an externe Systeme wie n8n oder Zapier.')
+                        ->icon('heroicon-o-globe-alt')
+                        ->collapsed()
+                        ->schema([
+                            Toggle::make('webhook_enabled')
+                                ->label('Webhook aktivieren')
+                                ->helperText('Sendet eine HTTP-Anfrage wenn Erinnerungen fällig werden.')
+                                ->live(),
+
+                            TextInput::make('webhook_url')
+                                ->label('Webhook URL')
+                                ->url()
+                                ->placeholder('https://n8n.example.com/webhook/abc123')
+                                ->helperText('Die URL die aufgerufen wird (POST-Anfrage).')
+                                ->visible(fn (Get $get): bool => (bool) $get('webhook_enabled')),
+
+                            TextInput::make('webhook_secret')
+                                ->label('Webhook Secret')
+                                ->password()
+                                ->revealable()
+                                ->formatStateUsing(fn () => null)
+                                ->dehydrateStateUsing(fn ($state) => $state
+                                    ? encrypt($state)
+                                    : Auth::user()->settingsService()->get('webhook_secret'))
+                                ->helperText('Geheimer Schlüssel zur Signatur-Verifizierung (HMAC-SHA256).')
+                                ->placeholder('••••••••')
+                                ->visible(fn (Get $get): bool => (bool) $get('webhook_enabled')),
+
+                            Placeholder::make('webhook_status')
+                                ->label('Letzter Status')
+                                ->content(fn (): HtmlString => $this->getWebhookStatusDisplay())
+                                ->visible(fn (Get $get): bool => (bool) $get('webhook_enabled')),
+
+                            Actions::make([
+                                Action::make('testWebhook')
+                                    ->label('Webhook testen')
+                                    ->icon('heroicon-o-paper-airplane')
+                                    ->color('gray')
+                                    ->action(fn () => $this->testWebhook()),
+                            ])
+                                ->visible(fn (Get $get): bool => (bool) $get('webhook_enabled') && ! empty($get('webhook_url')))
+                                ->columnSpanFull(),
+                        ])
+                        ->columns(2),
                 ])
                     ->livewireSubmitHandler('save')
                     ->footer([
@@ -252,5 +307,72 @@ class Settings extends Page
             ->success()
             ->title('Einstellungen gespeichert')
             ->send();
+    }
+
+    protected function getWebhookStatusDisplay(): HtmlString
+    {
+        $settings = new SettingsService(Auth::user());
+        $webhookService = new WebhookService($settings);
+        $status = $webhookService->getLastStatus();
+
+        if (! $status) {
+            return new HtmlString('<span class="text-gray-500">Noch kein Webhook gesendet</span>');
+        }
+
+        $timestamp = $status['sent_at']
+            ? \Carbon\Carbon::parse($status['sent_at'])->format('d.m.Y H:i:s')
+            : '';
+
+        if ($status['status'] === 'success') {
+            return new HtmlString(
+                '<span class="text-success-600 dark:text-success-400">Erfolgreich</span>'.
+                ($timestamp ? ' <span class="text-gray-500 text-sm">('.$timestamp.')</span>' : '')
+            );
+        }
+
+        $error = htmlspecialchars($status['error'] ?? 'Unbekannter Fehler');
+
+        return new HtmlString(
+            '<span class="text-danger-600 dark:text-danger-400">Fehler</span>'.
+            ($timestamp ? ' <span class="text-gray-500 text-sm">('.$timestamp.')</span>' : '').
+            '<br><span class="text-sm text-gray-500">'.$error.'</span>'
+        );
+    }
+
+    protected function testWebhook(): void
+    {
+        $data = $this->form->getState();
+        Auth::user()->settingsService()->setMany($data);
+
+        $settings = new SettingsService(Auth::user());
+        $webhookService = new WebhookService($settings);
+
+        if (! $webhookService->isEnabled()) {
+            Notification::make()
+                ->title('Fehler')
+                ->body('Webhook ist nicht aktiviert oder keine URL konfiguriert.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $result = $webhookService->sendTestWebhook();
+
+        if ($result) {
+            Notification::make()
+                ->title('Erfolg')
+                ->body('Test-Webhook wurde erfolgreich gesendet.')
+                ->success()
+                ->send();
+        } else {
+            $status = $webhookService->getLastStatus();
+            Notification::make()
+                ->title('Fehler')
+                ->body('Webhook konnte nicht gesendet werden: '.($status['error'] ?? 'Unbekannter Fehler'))
+                ->danger()
+                ->persistent()
+                ->send();
+        }
     }
 }

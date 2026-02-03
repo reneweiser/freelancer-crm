@@ -6,6 +6,7 @@ use App\Mail\ReminderDueMail;
 use App\Models\Reminder;
 use App\Services\EmailConfigurationService;
 use App\Services\SettingsService;
+use App\Services\WebhookService;
 use Filament\Notifications\Actions\Action;
 use Filament\Notifications\Notification;
 use Illuminate\Bus\Queueable;
@@ -37,6 +38,9 @@ class SendReminderNotification implements ShouldQueue
 
         // 2. Send email notification if SMTP is configured
         $this->sendEmailNotification();
+
+        // 3. Send webhook if configured
+        $this->sendWebhook();
 
         // Mark reminder as notified
         $this->reminder->update(['notified_at' => now()]);
@@ -87,6 +91,24 @@ class SendReminderNotification implements ShouldQueue
         } catch (\Exception $e) {
             // Log error but don't fail the job - database notification was already sent
             Log::warning("Failed to send email for reminder {$this->reminder->id}: {$e->getMessage()}");
+        }
+    }
+
+    private function sendWebhook(): void
+    {
+        try {
+            $user = $this->reminder->user;
+            $settings = new SettingsService($user);
+            $webhookService = new WebhookService($settings);
+
+            if ($webhookService->isEnabled()) {
+                $webhookService->sendReminderDueWebhook($this->reminder);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send reminder webhook', [
+                'reminder_id' => $this->reminder->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
