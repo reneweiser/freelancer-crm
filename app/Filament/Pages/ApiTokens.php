@@ -4,11 +4,22 @@ namespace App\Filament\Pages;
 
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\EmbeddedTable;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Icon;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\UnorderedList;
+use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
+use Filament\Support\Enums\FontWeight;
+use Filament\Support\Enums\TextSize;
 use Filament\Support\Icons\Heroicon;
-use Filament\Actions\DeleteAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -28,9 +39,147 @@ class ApiTokens extends Page implements HasTable
 
     protected static ?int $navigationSort = 99;
 
-    protected string $view = 'filament.pages.api-tokens';
-
     public ?string $newTokenPlainText = null;
+
+    public function content(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                $this->getTokenAlertComponent(),
+                Grid::make(['lg' => 3])
+                    ->schema([
+                        Section::make('Aktive Tokens')
+                            ->description('Verwalten Sie Ihre API-Tokens. Tokens ermöglichen den programmatischen Zugriff auf Ihre CRM-Daten.')
+                            ->schema([
+                                EmbeddedTable::make(),
+                            ])
+                            ->columnSpan(['lg' => 2]),
+                        Grid::make(1)
+                            ->schema([
+                                $this->getSetupSection(),
+                                $this->getSecuritySection(),
+                            ])
+                            ->columnSpan(['lg' => 1]),
+                    ]),
+            ]);
+    }
+
+    protected function getTokenAlertComponent(): Section
+    {
+        return Section::make('Neuer API-Token erstellt')
+            ->description('Kopieren Sie diesen Token jetzt. Er wird aus Sicherheitsgründen nicht erneut angezeigt.')
+            ->icon(Heroicon::OutlinedExclamationTriangle)
+            ->iconColor('warning')
+            ->schema([
+                Text::make(fn () => $this->newTokenPlainText)
+                    ->fontFamily(FontFamily::Mono)
+                    ->size(TextSize::Small)
+                    ->copyable()
+                    ->weight(FontWeight::Medium),
+                Actions::make([
+                    Action::make('dismissToken')
+                        ->label('Token wurde kopiert, Meldung ausblenden')
+                        ->link()
+                        ->color('warning')
+                        ->action(fn () => $this->dismissToken()),
+                ]),
+            ])
+            ->extraAttributes([
+                'class' => 'bg-warning-50 dark:bg-warning-950 border-warning-300 dark:border-warning-700',
+            ])
+            ->visible(fn () => $this->newTokenPlainText !== null);
+    }
+
+    protected function getSetupSection(): Section
+    {
+        $baseUrl = config('app.url');
+
+        return Section::make('Einrichtung')
+            ->schema([
+                Text::make('Claude Code MCP-Konfiguration')
+                    ->weight(FontWeight::Bold)
+                    ->color('neutral'),
+                Text::make('Fügen Sie folgende Konfiguration zu Ihrer ~/.claude/claude_desktop_config.json hinzu:')
+                    ->size(TextSize::Small)
+                    ->color('neutral'),
+                Text::make(<<<JSON
+{
+  "mcpServers": {
+    "freelancer-crm": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-proxy", "{$baseUrl}/api/v1"],
+      "env": {
+        "API_TOKEN": "IHR_TOKEN_HIER"
+      }
+    }
+  }
+}
+JSON)
+                    ->fontFamily(FontFamily::Mono)
+                    ->size(TextSize::ExtraSmall)
+                    ->copyable(),
+                Text::make('cURL-Beispiel')
+                    ->weight(FontWeight::Bold)
+                    ->color('neutral'),
+                Text::make("curl -H \"Authorization: Bearer IHR_TOKEN_HIER\" {$baseUrl}/api/v1/clients")
+                    ->fontFamily(FontFamily::Mono)
+                    ->size(TextSize::ExtraSmall)
+                    ->copyable(),
+                Text::make('Verfügbare Endpunkte')
+                    ->weight(FontWeight::Bold)
+                    ->color('neutral'),
+                UnorderedList::make([
+                    Text::make('GET /api/v1/clients - Kunden auflisten')->size(TextSize::Small)->color('neutral'),
+                    Text::make('GET /api/v1/projects - Projekte auflisten')->size(TextSize::Small)->color('neutral'),
+                    Text::make('GET /api/v1/invoices - Rechnungen auflisten')->size(TextSize::Small)->color('neutral'),
+                    Text::make('GET /api/v1/reminders - Erinnerungen auflisten')->size(TextSize::Small)->color('neutral'),
+                    Text::make('GET /api/v1/stats - Statistiken abrufen')->size(TextSize::Small)->color('neutral'),
+                    Text::make('POST /api/v1/batch - Batch-Operationen ausführen')->size(TextSize::Small)->color('neutral'),
+                    Text::make('POST /api/v1/validate - Operationen validieren')->size(TextSize::Small)->color('neutral'),
+                ])->columns(1),
+            ]);
+    }
+
+    protected function getSecuritySection(): Section
+    {
+        return Section::make('Sicherheitshinweise')
+            ->schema([
+                $this->makeSecurityItem(
+                    Heroicon::OutlinedShieldCheck,
+                    'success',
+                    'Tokens haben vollen Zugriff auf Ihre Daten. Teilen Sie sie nicht.'
+                ),
+                $this->makeSecurityItem(
+                    Heroicon::OutlinedClock,
+                    'info',
+                    'Widerrufen Sie ungenutzte Tokens regelmäßig.'
+                ),
+                $this->makeSecurityItem(
+                    Heroicon::OutlinedEyeSlash,
+                    'warning',
+                    'Speichern Sie Tokens sicher in Umgebungsvariablen.'
+                ),
+                $this->makeSecurityItem(
+                    Heroicon::OutlinedArrowPath,
+                    'gray',
+                    'Rotieren Sie Tokens bei Verdacht auf Kompromittierung.'
+                ),
+            ]);
+    }
+
+    protected function makeSecurityItem(Heroicon $icon, string $color, string $text): Grid
+    {
+        return Grid::make(['default' => 12])
+            ->schema([
+                Icon::make($icon)
+                    ->color($color)
+                    ->columnSpan(1),
+                Text::make($text)
+                    ->size(TextSize::Small)
+                    ->color('neutral')
+                    ->columnSpan(11),
+            ]);
+    }
 
     public function table(Table $table): Table
     {
@@ -74,7 +223,7 @@ class ApiTokens extends Page implements HasTable
             Action::make('createToken')
                 ->label('Neuen Token erstellen')
                 ->icon('heroicon-o-plus')
-                ->form([
+                ->schema([
                     TextInput::make('name')
                         ->label('Token-Name')
                         ->placeholder('z.B. Claude Code')
@@ -89,8 +238,7 @@ class ApiTokens extends Page implements HasTable
                     Notification::make()
                         ->title('Token erstellt')
                         ->body('Kopieren Sie den Token jetzt - er wird nur einmal angezeigt!')
-                        ->warning()
-                        ->persistent()
+                        ->success()
                         ->send();
                 }),
         ];
@@ -99,47 +247,5 @@ class ApiTokens extends Page implements HasTable
     public function dismissToken(): void
     {
         $this->newTokenPlainText = null;
-    }
-
-    public function getSetupInstructions(): string
-    {
-        $baseUrl = config('app.url');
-
-        return <<<INSTRUCTIONS
-        ## Claude Code MCP-Konfiguration
-
-        Fügen Sie folgende Konfiguration zu Ihrer `~/.claude/claude_desktop_config.json` hinzu:
-
-        ```json
-        {
-          "mcpServers": {
-            "freelancer-crm": {
-              "command": "npx",
-              "args": ["-y", "@anthropic/mcp-proxy", "{$baseUrl}/api/v1"],
-              "env": {
-                "API_TOKEN": "IHR_TOKEN_HIER"
-              }
-            }
-          }
-        }
-        ```
-
-        ## cURL-Beispiel
-
-        ```bash
-        curl -H "Authorization: Bearer IHR_TOKEN_HIER" \\
-             {$baseUrl}/api/v1/clients
-        ```
-
-        ## Verfügbare Endpunkte
-
-        - `GET /api/v1/clients` - Kunden auflisten
-        - `GET /api/v1/projects` - Projekte auflisten
-        - `GET /api/v1/invoices` - Rechnungen auflisten
-        - `GET /api/v1/reminders` - Erinnerungen auflisten
-        - `GET /api/v1/stats` - Statistiken abrufen
-        - `POST /api/v1/batch` - Batch-Operationen ausführen
-        - `POST /api/v1/validate` - Operationen validieren
-        INSTRUCTIONS;
     }
 }
