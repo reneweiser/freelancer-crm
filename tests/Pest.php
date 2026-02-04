@@ -13,6 +13,9 @@
 
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+    ->beforeEach(function () {
+        \Database\Factories\InvoiceFactory::resetSequence();
+    })
     ->in('Feature');
 
 /*

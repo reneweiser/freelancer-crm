@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Enums\InvoiceStatus;
 use App\Models\Client;
-use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -13,12 +12,23 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class InvoiceFactory extends Factory
 {
+    private static int $sequence = 0;
+
+    public static function resetSequence(): void
+    {
+        static::$sequence = 0;
+    }
+
     public function definition(): array
     {
         return [
             'user_id' => User::factory(),
             'client_id' => Client::factory(),
-            'number' => fn () => Invoice::generateNextNumber(),
+            'number' => function () {
+                static::$sequence++;
+
+                return now()->year.'-'.str_pad(static::$sequence, 3, '0', STR_PAD_LEFT);
+            },
             'status' => InvoiceStatus::Draft,
             'issued_at' => now(),
             'due_at' => now()->addDays(14),
