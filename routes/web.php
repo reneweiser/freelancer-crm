@@ -4,7 +4,7 @@ use App\Http\Controllers\PdfController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('landing');
+    return redirect('/admin');
 })->name('home');
 
 Route::middleware(['auth'])->group(function () {
