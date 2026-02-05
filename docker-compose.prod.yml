@@ -1,8 +1,6 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/reneweiser/freelancer-crm:${IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "${APP_PORT:-80}:8080"
@@ -36,9 +34,7 @@ services:
       start_period: 30s
 
   scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/reneweiser/freelancer-crm:${IMAGE_TAG:-latest}
     restart: unless-stopped
     command: ["php", "artisan", "schedule:work"]
     environment:
@@ -55,9 +51,7 @@ services:
       - crm-network
 
   queue:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/reneweiser/freelancer-crm:${IMAGE_TAG:-latest}
     restart: unless-stopped
     command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
     environment:
