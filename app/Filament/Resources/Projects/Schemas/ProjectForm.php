@@ -5,12 +5,14 @@ namespace App\Filament\Resources\Projects\Schemas;
 use App\Enums\ProjectStatus;
 use App\Enums\ProjectType;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Number;
 
 class ProjectForm
 {
@@ -52,8 +54,10 @@ class ProjectForm
 
                         TextInput::make('hourly_rate')
                             ->label('Stundensatz')
+                            ->helperText('Wird für die Abrechnung von Zeiterfassungen verwendet')
                             ->numeric()
                             ->prefix('€')
+                            ->live()
                             ->visible(fn ($get) => $get('type') === ProjectType::Hourly->value || $get('type') === ProjectType::Hourly),
 
                         TextInput::make('fixed_price')
@@ -117,10 +121,22 @@ class ProjectForm
                                         'Pauschal' => 'Pauschal',
                                     ])
                                     ->default('Stück')
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, $set, $get) {
+                                        if ($state === 'Stunden' && ! $get('unit_price')) {
+                                            $hourlyRate = $get('../../hourly_rate');
+                                            if ($hourlyRate) {
+                                                $set('unit_price', $hourlyRate);
+                                            }
+                                        }
+                                    })
                                     ->columnSpan(1),
 
                                 TextInput::make('unit_price')
                                     ->label('Einzelpreis')
+                                    ->helperText(fn ($get) => $get('unit') === 'Stunden'
+                                        ? 'Kann vom Projekt-Stundensatz abweichen'
+                                        : null)
                                     ->numeric()
                                     ->prefix('€')
                                     ->required()
@@ -130,9 +146,22 @@ class ProjectForm
                             ->reorderable()
                             ->orderColumn('position')
                             ->collapsible()
+                            ->live()
                             ->defaultItems(1)
                             ->addActionLabel('Position hinzufügen')
                             ->columnSpanFull(),
+
+                        Placeholder::make('items_total')
+                            ->label('Angebotssumme (netto)')
+                            ->content(function ($get) {
+                                $items = $get('items') ?? [];
+                                $total = collect($items)->sum(function ($item) {
+                                    return ((float) ($item['quantity'] ?? 0)) * ((float) ($item['unit_price'] ?? 0));
+                                });
+
+                                return Number::currency($total, 'EUR', 'de');
+                            })
+                            ->visible(fn ($get) => ! empty($get('items'))),
                     ])
                     ->columnSpanFull(),
 
