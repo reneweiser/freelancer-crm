@@ -89,12 +89,14 @@ Invoice numbers: `YYYY-NNN` format (e.g., 2026-001), reset yearly with database 
 
 ## Production Deployment
 
-Build immutable Docker images (no code volume mounts):
+Pulls pre-built Docker image from GHCR (no local build needed):
 
 ```bash
-docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
+
+Pin a specific version with `IMAGE_TAG=sha-<commit>` in `.env.prod` or inline.
 
 Uses `serversideup/php:8.4-fpm-nginx` with Laravel automations for migrations and caching.
 
