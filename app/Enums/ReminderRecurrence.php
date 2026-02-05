@@ -10,6 +10,7 @@ enum ReminderRecurrence: string implements HasLabel
     case Daily = 'daily';
     case Weekly = 'weekly';
     case Monthly = 'monthly';
+    case Quarterly = 'quarterly';
     case Yearly = 'yearly';
 
     public function getLabel(): string
@@ -18,6 +19,7 @@ enum ReminderRecurrence: string implements HasLabel
             self::Daily => 'Täglich',
             self::Weekly => 'Wöchentlich',
             self::Monthly => 'Monatlich',
+            self::Quarterly => 'Vierteljährlich',
             self::Yearly => 'Jährlich',
         };
     }
@@ -28,6 +30,7 @@ enum ReminderRecurrence: string implements HasLabel
             self::Daily => $from->copy()->addDay(),
             self::Weekly => $from->copy()->addWeek(),
             self::Monthly => $from->copy()->addMonth(),
+            self::Quarterly => $from->copy()->addQuarter(),
             self::Yearly => $from->copy()->addYear(),
         };
     }

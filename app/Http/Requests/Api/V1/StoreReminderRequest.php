@@ -43,7 +43,7 @@ class StoreReminderRequest extends FormRequest
             'due_at.required' => 'Due date is required.',
             'due_at.date' => 'Due date must be a valid date.',
             'priority.enum' => 'Invalid priority. Use "low", "normal", or "high".',
-            'recurrence.enum' => 'Invalid recurrence. Use "daily", "weekly", "monthly", or "yearly".',
+            'recurrence.enum' => 'Invalid recurrence. Use "daily", "weekly", "monthly", "quarterly", or "yearly".',
             'remindable_type.in' => 'Invalid remindable type. Use "Client", "Project", or "Invoice".',
             'remindable_id.required_with' => 'Remindable ID is required when type is specified.',
         ];
