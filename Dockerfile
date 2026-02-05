@@ -25,6 +25,9 @@ COPY ./package-lock.json ./
 
 RUN npm ci
 
+# Copy vendor from php_base for Filament CSS imports
+COPY --from=php_base /var/www/html/vendor ./vendor
+
 # Copy full source
 COPY . .
 
