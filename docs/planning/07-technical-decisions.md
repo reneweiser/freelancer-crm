@@ -752,17 +752,24 @@ volumes:
 | `AUTORUN_LARAVEL_STORAGE_LINK` | Create storage link | `false` |
 | `AUTORUN_LARAVEL_OPTIMIZE` | Run full optimization | `false` |
 
-### Deployment Workflow
+### Generating APP_KEY
+
+Generate an application key without a local PHP installation:
 
 ```bash
-# Build the production image
-docker compose -f docker-compose.prod.yml build
+echo "base64:$(openssl rand -base64 32)"
+```
 
-# Or build and tag manually
-docker build -t reneweiser-crm:latest .
+Or with PHP available: `php artisan key:generate --show`
 
-# Deploy (pulls/builds image, starts containers)
-docker compose -f docker-compose.prod.yml up -d
+### Deployment Option A: Docker Compose (CLI)
+
+```bash
+# Pull the pre-built image from GHCR
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+
+# Deploy
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 # Check logs
 docker compose -f docker-compose.prod.yml logs -f app
@@ -770,12 +777,11 @@ docker compose -f docker-compose.prod.yml logs -f app
 # Run manual artisan commands
 docker compose -f docker-compose.prod.yml exec app php artisan tinker
 
-# Rebuild and redeploy after code changes
-docker compose -f docker-compose.prod.yml build app
-docker compose -f docker-compose.prod.yml up -d --no-deps app
+# Pin a specific version
+IMAGE_TAG=sha-abc1234 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
-### Environment File (.env.prod)
+#### Environment File (.env.prod)
 
 Store secrets separately from docker-compose.prod.yml:
 
@@ -793,7 +799,41 @@ MAIL_PASSWORD=your_password
 MAIL_FROM_ADDRESS=rechnung@example.com
 ```
 
-Load with: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d`
+### Deployment Option B: Portainer Stack (with Traefik)
+
+Use `docker-compose.portainer.yml` for deployment via Portainer's Stacks UI. This variant is designed for environments using Traefik as a reverse proxy.
+
+**Key differences from the CLI compose file:**
+
+- No port mappings — Traefik routes traffic via labels
+- External `frontend` network connects the app to Traefik
+- Internal `internal` bridge network for inter-service communication
+- All env vars use `${VAR}` substitution (configured in Portainer's Environment Variables UI instead of an env file)
+- YAML anchors (`x-app-env`) eliminate env var duplication across services
+- Traefik labels on the `app` service with Let's Encrypt TLS
+
+**Steps:**
+
+1. In Portainer, go to **Stacks → Add Stack**
+2. Paste `docker-compose.portainer.yml` into the Web Editor (or point to the Git repository)
+3. Add environment variables in the **Environment variables** section:
+
+| Variable | Required | Example |
+|----------|----------|---------|
+| `APP_KEY` | Yes | `base64:...` (generate with `echo "base64:$(openssl rand -base64 32)"`) |
+| `APP_URL` | Yes | `https://crm.example.com` |
+| `APP_DOMAIN` | Yes | `crm.example.com` (used in Traefik Host rule) |
+| `DB_PASSWORD` | Yes | Secure random password |
+| `DB_ROOT_PASSWORD` | Yes | Secure random root password |
+| `MAIL_HOST` | Yes | `smtp.example.com` |
+| `MAIL_USERNAME` | Yes | SMTP username |
+| `MAIL_PASSWORD` | Yes | SMTP password |
+| `MAIL_FROM_ADDRESS` | Yes | `rechnung@example.com` |
+| `IMAGE_TAG` | No | `sha-abc1234` (defaults to `latest`) |
+
+4. Click **Deploy the stack**
+
+All other variables (database name, session driver, cache store, etc.) have sensible defaults and can be overridden as needed.
 
 ---
 

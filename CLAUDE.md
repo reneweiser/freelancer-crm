@@ -89,16 +89,32 @@ Invoice numbers: `YYYY-NNN` format (e.g., 2026-001), reset yearly with database 
 
 ## Production Deployment
 
-Pulls pre-built Docker image from GHCR (no local build needed):
+Pulls pre-built Docker image from GHCR (no local build needed). Uses `serversideup/php:8.4-fpm-nginx` with Laravel automations for migrations and caching.
+
+### Option A: Docker Compose (CLI)
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod pull
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
-Pin a specific version with `IMAGE_TAG=sha-<commit>` in `.env.prod` or inline.
+### Option B: Portainer Stack
 
-Uses `serversideup/php:8.4-fpm-nginx` with Laravel automations for migrations and caching.
+Use `docker-compose.portainer.yml` — designed for Portainer's Stacks UI with Traefik reverse proxy:
+
+- No port mappings (Traefik handles routing via labels)
+- External `frontend` network for Traefik, internal `internal` bridge network
+- All env vars inlined via `${VAR}` substitution (set in Portainer's Environment Variables UI)
+- YAML anchors (`x-app-env`) to avoid duplicating env config across services
+- Required variables: `APP_KEY`, `APP_URL`, `APP_DOMAIN`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, mail settings
+
+Generate `APP_KEY` without a local PHP installation:
+
+```bash
+echo "base64:$(openssl rand -base64 32)"
+```
+
+Pin a specific version with `IMAGE_TAG=sha-<commit>` in the stack's environment variables.
 
 ## Planning Documents
 
