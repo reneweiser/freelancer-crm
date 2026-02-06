@@ -537,6 +537,226 @@
     }
 
     /* ═══════════════════════════════════════════
+       MCP SECTION (differentiator)
+       ═══════════════════════════════════════════ */
+    .mcp-section {
+      padding: 5rem 0;
+      position: relative;
+    }
+
+    .mcp-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(ellipse, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .mcp-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+      align-items: start;
+    }
+
+    .mcp-content .section-label {
+      color: var(--blue-light);
+    }
+
+    .mcp-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--blue-light);
+      border: 1px solid rgba(37, 99, 235, 0.25);
+      background: rgba(37, 99, 235, 0.06);
+      padding: 0.25rem 0.65rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+    }
+
+    .mcp-content .section-title {
+      margin-bottom: 1rem;
+    }
+
+    .mcp-desc {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.7;
+      margin-bottom: 1.5rem;
+    }
+
+    .mcp-tools-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-bottom: 2rem;
+    }
+
+    .mcp-tools-list li {
+      display: flex;
+      align-items: baseline;
+      gap: 0.65rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .mcp-tools-list li::before {
+      content: '>';
+      color: var(--green);
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+
+    .mcp-tools-list strong {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .mcp-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--blue-light);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(37, 99, 235, 0.3);
+      padding-bottom: 1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .mcp-link:hover {
+      color: var(--text-primary);
+      border-color: var(--text-primary);
+    }
+
+    .mcp-link svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Conversation demo */
+    .mcp-demo {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .mcp-demo-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.6rem 0.9rem;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mcp-demo-bar .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border-accent);
+    }
+
+    .mcp-demo-bar span {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .mcp-demo-body {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .mcp-msg {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+
+    .mcp-msg-role {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      flex-shrink: 0;
+      padding-top: 2px;
+      min-width: 48px;
+    }
+
+    .mcp-msg-role.user {
+      color: var(--text-dim);
+    }
+
+    .mcp-msg-role.ai {
+      color: var(--blue-light);
+    }
+
+    .mcp-msg-role.tool {
+      color: var(--green);
+    }
+
+    .mcp-msg-text {
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    .mcp-msg-text code {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      background: var(--bg-deep);
+      padding: 0.15rem 0.4rem;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .mcp-msg-text .dim {
+      color: var(--text-dim);
+    }
+
+    .mcp-divider {
+      border: none;
+      border-top: 1px dashed var(--border);
+      margin: 0.25rem 0;
+    }
+
+    .mcp-tool-count {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-align: center;
+      padding: 0.75rem;
+      border-top: 1px solid var(--border);
+      letter-spacing: 0.04em;
+    }
+
+    @media (max-width: 768px) {
+      .mcp-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ═══════════════════════════════════════════
        TECH STACK
        ═══════════════════════════════════════════ */
     .stack-grid {
@@ -906,6 +1126,7 @@
 
       <ul class="nav-links">
         <li><a href="#features">Features</a></li>
+        <li><a href="#mcp">MCP</a></li>
         <li><a href="#workflow">Workflow</a></li>
         <li><a href="#stack">Stack</a></li>
         <li><a href="#deploy">Deploy</a></li>
@@ -917,7 +1138,7 @@
   <!-- ═══════════ HERO ═══════════ -->
   <section class="hero">
     <div class="container">
-      <div class="hero-badge">Open Source &middot; Self-Hosted</div>
+      <div class="hero-badge">Open Source &middot; Self-Hosted &middot; MCP-Enabled</div>
       <h1>
         Business management<br>
         <span class="gradient-text">built for developers.</span>
@@ -1057,6 +1278,83 @@
           <div class="feature-icon">&#60;Lock /&#62;</div>
           <h3>Privacy First</h3>
           <p>Self-hosted on your infrastructure. No third-party data sharing. User-scoped data isolation. Your data, your rules.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ MCP SERVER ═══════════ -->
+  <section class="mcp-section" id="mcp">
+    <div class="container">
+      <div class="mcp-layout">
+        <div class="mcp-content fade-in">
+          <div class="section-label">// ai-native</div>
+          <div class="mcp-badge">Model Context Protocol</div>
+          <h2 class="section-title">Talk to your CRM.<br>Literally.</h2>
+          <p class="mcp-desc">
+            Ships with a dedicated MCP server that connects Claude Code and Claude Desktop
+            directly to your CRM data. Create projects from meeting notes, generate invoices
+            from conversation, query your pipeline — all through natural language.
+          </p>
+          <ul class="mcp-tools-list">
+            <li><strong>15 MCP tools</strong> for clients, projects, invoices, reminders, and stats</li>
+            <li><strong>Batch operations</strong> for atomic multi-resource workflows</li>
+            <li><strong>Auto-pagination</strong> and smart error messages with fix suggestions</li>
+            <li><strong>Sanctum token auth</strong> with configurable rate limiting</li>
+          </ul>
+          <a href="https://github.com/reneweiser/freelancer-crm-mcp" class="mcp-link">
+            View MCP Server on GitHub
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3l5 5-5 5"/></svg>
+          </a>
+        </div>
+
+        <div class="mcp-demo fade-in">
+          <div class="mcp-demo-bar">
+            <div class="terminal-dot"></div>
+            <div class="terminal-dot"></div>
+            <div class="terminal-dot"></div>
+            <span>claude code</span>
+          </div>
+          <div class="mcp-demo-body">
+            <div class="mcp-msg">
+              <span class="mcp-msg-role user">you</span>
+              <span class="mcp-msg-text">Create a project for Acme Corp — website redesign, 3 phases, 12k total.</span>
+            </div>
+            <hr class="mcp-divider">
+            <div class="mcp-msg">
+              <span class="mcp-msg-role tool">mcp</span>
+              <span class="mcp-msg-text"><code>crm_list_clients</code> <span class="dim">→ found "Acme Corp" (id: 42)</span></span>
+            </div>
+            <div class="mcp-msg">
+              <span class="mcp-msg-role tool">mcp</span>
+              <span class="mcp-msg-text"><code>crm_create_project</code> <span class="dim">→ 3 line items, &euro;12,000.00</span></span>
+            </div>
+            <hr class="mcp-divider">
+            <div class="mcp-msg">
+              <span class="mcp-msg-role ai">claude</span>
+              <span class="mcp-msg-text">Done. Created project "Website Redesign" for Acme Corp with 3 phases totaling &euro;12,000. Status is set to draft — want me to send the offer?</span>
+            </div>
+            <hr class="mcp-divider">
+            <div class="mcp-msg">
+              <span class="mcp-msg-role user">you</span>
+              <span class="mcp-msg-text">Yes, and remind me to follow up in 2 weeks.</span>
+            </div>
+            <hr class="mcp-divider">
+            <div class="mcp-msg">
+              <span class="mcp-msg-role tool">mcp</span>
+              <span class="mcp-msg-text"><code>crm_update_project_status</code> <span class="dim">→ draft → sent</span></span>
+            </div>
+            <div class="mcp-msg">
+              <span class="mcp-msg-role tool">mcp</span>
+              <span class="mcp-msg-text"><code>crm_create_reminder</code> <span class="dim">→ 2026-02-20, "Follow up on Acme offer"</span></span>
+            </div>
+            <hr class="mcp-divider">
+            <div class="mcp-msg">
+              <span class="mcp-msg-role ai">claude</span>
+              <span class="mcp-msg-text">Offer sent and reminder set for Feb 20th.</span>
+            </div>
+          </div>
+          <div class="mcp-tool-count">15 tools &middot; clients &middot; projects &middot; invoices &middot; reminders &middot; stats &middot; batch ops</div>
         </div>
       </div>
     </div>
