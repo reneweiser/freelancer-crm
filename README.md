@@ -1,93 +1,79 @@
 # Freelancer CRM
 
-A personal CRM platform for freelance web developers and IT consultants. Manage clients, projects, invoices, and time tracking in one place.
+Open-source business management for freelance developers and IT consultants. Clients, projects, time tracking, invoicing, and follow-ups — self-hosted, private, yours.
 
-## Tech Stack
+**[See what's inside](https://reneweiser.github.io/freelancer-crm/)** — features, workflow, MCP integration, and deployment options at a glance.
 
-- **Backend:** Laravel 12 + Filament 4.6
-- **PHP:** 8.4+
-- **Database:** MariaDB 11
-- **Development:** Laravel Sail (Docker)
-- **Testing:** Pest 4
-- **Code Style:** Laravel Pint
+## Quick Deploy
 
-## Core Features
+Pre-built images on GHCR. No local build step needed.
 
-**Workflow:** Client → Offer → Project → Invoice → Payment → Follow-up
+```bash
+git clone https://github.com/reneweiser/freelancer-crm
+cd freelancer-crm
+cp .env.prod.example .env.prod
+# Generate app key (no PHP required)
+echo "APP_KEY=base64:$(openssl rand -base64 32)" >> .env.prod
+# Edit .env.prod — set APP_URL, DB_PASSWORD, DB_ROOT_PASSWORD, MAIL_* settings
+nano .env.prod
+# Pull and start
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+```
 
-- Project lifecycle management (offers, projects, invoices)
-- Time tracking for hourly projects
-- Invoice generation with sequential numbering (YYYY-NNN format)
-- Client relationship tracking with reminders
-- Tax-ready financial exports
+On first startup, migrations run automatically and config is cached. Create your admin user:
 
-**Locale:** German (EUR, dd.mm.yyyy format)
+```bash
+docker compose -f docker-compose.prod.yml exec app php artisan make:filament-user
+```
 
-## Development Setup
+Open your browser. That's it.
+
+### Portainer Stack
+
+Prefer a GUI? Use `docker-compose.portainer.yml` — designed for Portainer's Stacks UI with Traefik reverse proxy. Set environment variables in the Portainer UI and deploy.
 
 ### Prerequisites
 
 - Docker & Docker Compose
-- PHP 8.4+ (for Composer outside container)
+- A server with at least 1GB RAM
 
-### Installation
+## MCP Server
+
+Ships with a dedicated [MCP server](https://github.com/reneweiser/freelancer-crm-mcp) that connects Claude Code or Claude Desktop directly to your CRM data. Create projects from meeting notes, generate invoices from conversation, query your pipeline — all through natural language.
+
+15 tools covering clients, projects, invoices, reminders, and stats. Batch operations, auto-pagination, Sanctum token auth.
+
+## REST API
+
+Full CRUD API with Sanctum authentication. Every resource is accessible programmatically — automate with cron jobs, scripts, or AI agents. Rate limited at 60 req/min.
+
+## Tech Stack
+
+Laravel 12 &middot; Filament 4 &middot; PHP 8.4+ &middot; Livewire 3 &middot; Tailwind CSS 4 &middot; MariaDB 11 &middot; Docker &middot; Sanctum &middot; DomPDF &middot; Pest 4
+
+## Development Setup
 
 ```bash
-# Clone repository
-git clone <repository-url>
-cd reneweiser-crm
-
-# Install dependencies
 composer install
-
-# Copy environment file
 cp .env.example .env
-
-# Start Sail environment
 ./vendor/bin/sail up -d
-
-# Generate app key
 ./vendor/bin/sail artisan key:generate
-
-# Run migrations
 ./vendor/bin/sail artisan migrate
-
-# Build frontend assets
-./vendor/bin/sail npm install
-./vendor/bin/sail npm run build
+./vendor/bin/sail npm install && ./vendor/bin/sail npm run build
 ```
 
-### Quick Start (after setup)
+### Commands
 
 ```bash
-./vendor/bin/sail up -d          # Start environment
-./vendor/bin/sail artisan tinker # REPL
-./vendor/bin/sail down           # Stop environment
-```
-
-## Development Commands
-
-```bash
-# Environment
-./vendor/bin/sail up -d                              # Start containers
-./vendor/bin/sail down                               # Stop containers
-./vendor/bin/sail composer run dev                   # Start dev server with Vite
-
-# Database
-./vendor/bin/sail artisan migrate                    # Run migrations
-./vendor/bin/sail artisan migrate:fresh --seed       # Reset with seeders
-
-# Filament
-./vendor/bin/sail artisan make:filament-resource X   # Create resource
-./vendor/bin/sail artisan make:filament-page X       # Create page
-
-# Testing
-./vendor/bin/sail artisan test                       # Run all tests
-./vendor/bin/sail artisan test --filter=TestName     # Run specific test
-
-# Code Quality
-./vendor/bin/sail bin pint                           # Format code
-./vendor/bin/sail bin pint --dirty                   # Format changed files only
+sail up -d                              # Start environment
+sail down                               # Stop environment
+sail composer run dev                   # Dev server with Vite
+sail artisan migrate                    # Run migrations
+sail artisan migrate:fresh --seed       # Reset with seeders
+sail test                               # Run all tests
+sail test --filter=TestName             # Run specific test
+sail pint                               # Format code
+sail pint --dirty                       # Format changed files only
 ```
 
 ## Architecture
@@ -119,7 +105,7 @@ Users
 
 **Invoice:** draft → sent → paid/overdue (or cancelled)
 
-## Project Structure
+### Project Structure
 
 ```
 app/
@@ -132,70 +118,7 @@ app/
 └── Enums/                  # Status enums
 ```
 
-## Documentation
-
-Detailed specifications in `docs/planning/`:
-
-| Document | Description |
-|----------|-------------|
-| [00-overview.md](docs/planning/00-overview.md) | Project summary |
-| [01-requirements.md](docs/planning/01-requirements.md) | User stories |
-| [02-data-model.md](docs/planning/02-data-model.md) | Database schema |
-| [03-filament-resources.md](docs/planning/03-filament-resources.md) | Filament resources |
-| [04-workflows.md](docs/planning/04-workflows.md) | State machines |
-| [05-features-mvp.md](docs/planning/05-features-mvp.md) | MVP scope |
-| [07-technical-decisions.md](docs/planning/07-technical-decisions.md) | ADRs |
-
-## Production Deployment
-
-Uses immutable Docker images with `serversideup/php:8.4-fpm-nginx`. The image includes Laravel automations that run migrations and cache configuration on startup.
-
-### Prerequisites
-
-- Docker & Docker Compose
-- A server with at least 1GB RAM
-
-### 1. Configure Environment
-
-```bash
-# Copy the example environment file
-cp .env.prod.example .env.prod
-
-# Generate an application key
-echo "APP_KEY=base64:$(openssl rand -base64 32)" >> .env.prod
-```
-
-Edit `.env.prod` and configure:
-
-| Variable | Description |
-|----------|-------------|
-| `APP_URL` | Your domain (e.g., `https://crm.example.com`) |
-| `DB_PASSWORD` | Secure password for the database user |
-| `DB_ROOT_PASSWORD` | Secure password for MariaDB root |
-| `MAIL_*` | SMTP settings for sending invoices |
-
-### 2. Build and Deploy
-
-```bash
-# Build the Docker image
-docker compose -f docker-compose.prod.yml build
-
-# Start the services
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
-```
-
-On first startup, Laravel automations will:
-- Run database migrations
-- Cache configuration, routes, views, and events
-- Create the storage symlink
-
-### 3. Create Admin User
-
-```bash
-docker compose -f docker-compose.prod.yml exec app php artisan make:filament-user
-```
-
-### Management Commands
+## Managing a Deployment
 
 ```bash
 # View logs
@@ -204,21 +127,36 @@ docker compose -f docker-compose.prod.yml logs -f app
 # Run artisan commands
 docker compose -f docker-compose.prod.yml exec app php artisan <command>
 
+# Update to latest version
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
 # Stop services
 docker compose -f docker-compose.prod.yml down
-
-# Update deployment
-git pull
-docker compose -f docker-compose.prod.yml build
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
-### Persistent Data
+Data persists across container recreations via Docker volumes (`app-data` for uploads, `mariadb-data` for the database).
 
-The following data persists across container recreations:
-- `app-data` volume: Uploaded files (`storage/app`)
-- `mariadb-data` volume: Database
+## Contributing
+
+Contributions are welcome. Fork the repo, create a branch, and open a PR.
+
+Before submitting, make sure tests pass and code is formatted:
+
+```bash
+sail test
+sail pint --dirty
+```
+
+Architecture decisions and detailed specs live in `docs/planning/` — worth reading before bigger changes:
+
+| Document | Description |
+|----------|-------------|
+| [02-data-model.md](docs/planning/02-data-model.md) | Database schema |
+| [03-filament-resources.md](docs/planning/03-filament-resources.md) | Filament resource definitions |
+| [04-workflows.md](docs/planning/04-workflows.md) | State machines and services |
+| [07-technical-decisions.md](docs/planning/07-technical-decisions.md) | Architecture decision records |
 
 ## License
 
-This project is open source and available under the [MIT License](LICENSE).
+Open source under the [MIT License](LICENSE).
