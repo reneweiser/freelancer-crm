@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Freelancer CRM — Business Management for Developers</title>
+  <meta name="description" content="Open-source CRM built for freelance developers and IT consultants. Manage clients, projects, time tracking, and invoicing — self-hosted, private, yours.">
+  <meta name="theme-color" content="#16a34a">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%2316a34a'/%3E%3Cstop offset='100%25' stop-color='%232563eb'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='url(%23bg)'/%3E%3Cpath d='M12 6h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V24a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z' fill='none' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cline x1='13' y1='16' x2='19' y2='16' stroke='white' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='13' y1='20' x2='19' y2='20' stroke='white' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════════
+       CSS VARIABLES
+       ═══════════════════════════════════════════ */
+    :root {
+      --green: #16a34a;
+      --green-light: #22c55e;
+      --green-dim: #16a34a33;
+      --blue: #2563eb;
+      --blue-light: #3b82f6;
+
+      --bg-deep: #0a0e14;
+      --bg-surface: #0d1117;
+      --bg-elevated: #151b23;
+      --bg-card: #1a2030;
+
+      --border: #21262d;
+      --border-accent: #30363d;
+
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-dim: #484f58;
+
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      --font-sans: 'Instrument Sans', -apple-system, sans-serif;
+
+      --gutter: clamp(1rem, 4vw, 2rem);
+      --max-width: 1140px;
+    }
+
+    /* ═══════════════════════════════════════════
+       RESET & BASE
+       ═══════════════════════════════════════════ */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══════════════════════════════════════════
+       BACKGROUND GRID TEXTURE
+       ═══════════════════════════════════════════ */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Gradient glow behind hero */
+    body::after {
+      content: '';
+      position: absolute;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 900px;
+      background: radial-gradient(ellipse, var(--green-dim) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ═══════════════════════════════════════════
+       LAYOUT
+       ═══════════════════════════════════════════ */
+    .container {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 var(--gutter);
+      position: relative;
+      z-index: 1;
+    }
+
+    section {
+      padding: 5rem 0;
+    }
+
+    /* ═══════════════════════════════════════════
+       NAVIGATION
+       ═══════════════════════════════════════════ */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 0.75rem 0;
+      background: var(--bg-deep);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      background: rgba(10, 14, 20, 0.85);
+    }
+
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .nav-brand svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .nav-brand span {
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-brand .accent {
+      color: var(--green);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.75rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--green-light);
+    }
+
+    .nav-cta {
+      font-family: var(--font-mono) !important;
+      font-size: 0.75rem !important;
+      padding: 0.4rem 1rem;
+      background: var(--green);
+      color: var(--bg-deep) !important;
+      border-radius: 3px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .nav-cta:hover {
+      background: var(--green-light) !important;
+    }
+
+    /* Mobile nav toggle */
+    .nav-toggle {
+      display: none;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 0.4rem;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+
+    .nav-toggle svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+
+    /* ═══════════════════════════════════════════
+       HERO
+       ═══════════════════════════════════════════ */
+    .hero {
+      padding-top: 8rem;
+      padding-bottom: 4rem;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--green);
+      border: 1px solid var(--green-dim);
+      background: rgba(22, 163, 74, 0.06);
+      padding: 0.35rem 0.85rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .hero h1 {
+      font-family: var(--font-sans);
+      font-size: clamp(2.5rem, 6vw, 4.25rem);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      margin-bottom: 1.5rem;
+      max-width: 820px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, var(--green) 0%, var(--blue-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(1rem, 2vw, 1.15rem);
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.7rem 1.5rem;
+      background: linear-gradient(135deg, var(--green), var(--blue));
+      color: white;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 24px rgba(22, 163, 74, 0.3);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.7rem 1.5rem;
+      background: transparent;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border: 1px solid var(--border-accent);
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .btn-secondary:hover {
+      color: var(--text-primary);
+      border-color: var(--text-dim);
+    }
+
+    .btn-secondary svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ═══════════════════════════════════════════
+       TERMINAL BLOCK (hero visual)
+       ═══════════════════════════════════════════ */
+    .terminal {
+      margin: 3.5rem auto 0;
+      max-width: 680px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      text-align: left;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.6rem 0.9rem;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border-accent);
+    }
+
+    .terminal-bar span {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .terminal-body {
+      padding: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      overflow-x: auto;
+    }
+
+    .terminal-body .prompt {
+      color: var(--green);
+      user-select: none;
+    }
+
+    .terminal-body .cmd {
+      color: var(--text-primary);
+    }
+
+    .terminal-body .comment {
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    .terminal-body .output {
+      color: var(--text-secondary);
+      opacity: 0.7;
+    }
+
+    .terminal-body .highlight {
+      color: var(--blue-light);
+    }
+
+    /* ═══════════════════════════════════════════
+       WORKFLOW SECTION
+       ═══════════════════════════════════════════ */
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-family: var(--font-sans);
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+
+    .section-desc {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      max-width: 520px;
+      line-height: 1.7;
+      margin-bottom: 3rem;
+    }
+
+    .workflow-pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .workflow-step {
+      flex: 1;
+      min-width: 140px;
+      padding: 1.25rem 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-right: none;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .workflow-step:last-child {
+      border-right: 1px solid var(--border);
+    }
+
+    .workflow-step::after {
+      content: '→';
+      position: absolute;
+      right: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--green);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      z-index: 2;
+      background: var(--bg-deep);
+      padding: 2px;
+    }
+
+    .workflow-step:last-child::after {
+      display: none;
+    }
+
+    .workflow-step .step-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .workflow-step .step-name {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .workflow-step .step-desc {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ═══════════════════════════════════════════
+       FEATURES GRID
+       ═══════════════════════════════════════════ */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    .feature-card {
+      background: var(--bg-surface);
+      padding: 2rem 1.75rem;
+      transition: background 0.2s;
+    }
+
+    .feature-card:hover {
+      background: var(--bg-elevated);
+    }
+
+    .feature-icon {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--green);
+      margin-bottom: 1rem;
+      letter-spacing: 0.06em;
+    }
+
+    .feature-card h3 {
+      font-family: var(--font-sans);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-card p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════
+       TECH STACK
+       ═══════════════════════════════════════════ */
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .stack-item {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      transition: border-color 0.2s;
+    }
+
+    .stack-item:hover {
+      border-color: var(--border-accent);
+    }
+
+    .stack-item .stack-name {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .stack-item .stack-ver {
+      color: var(--text-dim);
+      font-size: 0.7rem;
+    }
+
+    /* ═══════════════════════════════════════════
+       DEPLOY SECTION
+       ═══════════════════════════════════════════ */
+    .deploy-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .deploy-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 2rem;
+    }
+
+    .deploy-card h3 {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .deploy-card p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+    }
+
+    .deploy-card pre {
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      line-height: 1.7;
+    }
+
+    .deploy-card pre .prompt {
+      color: var(--green);
+      user-select: none;
+    }
+
+    .deploy-card pre .cmd {
+      color: var(--text-primary);
+    }
+
+    /* ═══════════════════════════════════════════
+       SELLING POINTS (alternating layout)
+       ═══════════════════════════════════════════ */
+    .highlights-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-top: 3rem;
+    }
+
+    .highlight-item {
+      background: var(--bg-surface);
+      padding: 2rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .highlight-item .hi-num {
+      font-family: var(--font-mono);
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--green), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .highlight-item h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .highlight-item p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════
+       CTA / FOOTER
+       ═══════════════════════════════════════════ */
+    .cta-section {
+      text-align: center;
+      padding: 5rem 0;
+    }
+
+    .cta-section .section-title {
+      margin-bottom: 1rem;
+    }
+
+    .cta-section p {
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+      font-size: 1rem;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    footer .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    footer p {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    footer a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    footer a:hover {
+      color: var(--green-light);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .footer-links a:hover {
+      color: var(--green-light);
+    }
+
+    /* ═══════════════════════════════════════════
+       ANIMATIONS
+       ═══════════════════════════════════════════ */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* staggered children */
+    .stagger > * {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .stagger.visible > * {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .stagger.visible > *:nth-child(1) { transition-delay: 0s; }
+    .stagger.visible > *:nth-child(2) { transition-delay: 0.06s; }
+    .stagger.visible > *:nth-child(3) { transition-delay: 0.12s; }
+    .stagger.visible > *:nth-child(4) { transition-delay: 0.18s; }
+    .stagger.visible > *:nth-child(5) { transition-delay: 0.24s; }
+    .stagger.visible > *:nth-child(6) { transition-delay: 0.3s; }
+    .stagger.visible > *:nth-child(7) { transition-delay: 0.36s; }
+    .stagger.visible > *:nth-child(8) { transition-delay: 0.42s; }
+    .stagger.visible > *:nth-child(9) { transition-delay: 0.48s; }
+
+    /* Typing cursor */
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 1.1em;
+      background: var(--green);
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+       ═══════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
+        padding: 1rem var(--gutter);
+        gap: 1rem;
+      }
+
+      .nav-links.open {
+        display: flex;
+      }
+
+      .nav-toggle {
+        display: block;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .deploy-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .highlights-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .workflow-pipeline {
+        flex-direction: column;
+      }
+
+      .workflow-step::after {
+        content: '↓';
+        right: 50%;
+        top: auto;
+        bottom: -12px;
+        transform: translateX(50%);
+      }
+
+      .workflow-step {
+        border-right: 1px solid var(--border);
+        border-bottom: none;
+      }
+
+      .workflow-step:last-child {
+        border-bottom: 1px solid var(--border);
+      }
+
+      footer .container {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero h1 {
+        font-size: 2rem;
+      }
+
+      section {
+        padding: 3rem 0;
+      }
+
+      .hero {
+        padding-top: 6rem;
+      }
+    }
+
+    /* ═══════════════════════════════════════════
+       REDUCED MOTION
+       ═══════════════════════════════════════════ */
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in,
+      .stagger > * {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+
+      .cursor {
+        animation: none;
+      }
+
+      .hero-badge::before {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════ NAV ═══════════ -->
+  <nav>
+    <div class="container">
+      <a href="#" class="nav-brand">
+        <svg viewBox="0 0 32 32" fill="none">
+          <defs>
+            <linearGradient id="nav-grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#16a34a"/>
+              <stop offset="100%" stop-color="#2563eb"/>
+            </linearGradient>
+          </defs>
+          <rect width="32" height="32" rx="7" fill="url(#nav-grad)"/>
+          <path d="M12 6h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V24a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="13" y1="16" x2="19" y2="16" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="13" y1="20" x2="19" y2="20" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>Freelancer<span class="accent">CRM</span></span>
+      </a>
+
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 6h14a1 1 0 010 2H3a1 1 0 010-2zm0 6h14a1 1 0 010 2H3a1 1 0 010-2z"/></svg>
+      </button>
+
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#workflow">Workflow</a></li>
+        <li><a href="#stack">Stack</a></li>
+        <li><a href="#deploy">Deploy</a></li>
+        <li><a href="https://github.com/reneweiser/freelancer-crm" class="nav-cta">GitHub</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ═══════════ HERO ═══════════ -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">Open Source &middot; Self-Hosted</div>
+      <h1>
+        Business management<br>
+        <span class="gradient-text">built for developers.</span>
+      </h1>
+      <p class="hero-sub">
+        Clients, projects, time tracking, invoicing, and follow-ups.
+        One self-hosted platform. No SaaS subscription. Your data stays yours.
+      </p>
+      <div class="hero-actions">
+        <a href="https://github.com/reneweiser/freelancer-crm" class="btn-primary">
+          Clone &amp; Deploy
+        </a>
+        <a href="#features" class="btn-secondary">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10m0 0l-3.5-3.5M8 13l3.5-3.5"/></svg>
+          See Features
+        </a>
+      </div>
+
+      <!-- Terminal demo -->
+      <div class="terminal fade-in">
+        <div class="terminal-bar">
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <span>bash</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="prompt">$</span> <span class="cmd">git clone https://github.com/reneweiser/freelancer-crm</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cd freelancer-crm</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">docker compose -f docker-compose.prod.yml up -d</span></div>
+          <div class="output">Creating freelancer-crm-app-1  ... done</div>
+          <div class="output">Creating freelancer-crm-db-1   ... done</div>
+          <div><br></div>
+          <div><span class="comment"># That's it. Open your browser.</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">open</span> <span class="highlight">https://crm.yourdomain.com</span><span class="cursor"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ WORKFLOW ═══════════ -->
+  <section id="workflow">
+    <div class="container">
+      <div class="section-label">// workflow</div>
+      <h2 class="section-title">From first contact<br>to final payment.</h2>
+      <p class="section-desc">
+        A clear pipeline that mirrors how freelancers actually work.
+        Every step tracked, nothing forgotten.
+      </p>
+
+      <div class="workflow-pipeline stagger fade-in">
+        <div class="workflow-step">
+          <span class="step-num">01</span>
+          <span class="step-name">Client</span>
+          <span class="step-desc">Add contacts, companies, notes. Full relationship history.</span>
+        </div>
+        <div class="workflow-step">
+          <span class="step-num">02</span>
+          <span class="step-name">Offer</span>
+          <span class="step-desc">Create quotes with line items. Generate &amp; send PDFs.</span>
+        </div>
+        <div class="workflow-step">
+          <span class="step-num">03</span>
+          <span class="step-name">Project</span>
+          <span class="step-desc">Track progress. Log hours. Fixed or hourly pricing.</span>
+        </div>
+        <div class="workflow-step">
+          <span class="step-num">04</span>
+          <span class="step-name">Invoice</span>
+          <span class="step-desc">Auto-generate from projects. Sequential numbering. PDF export.</span>
+        </div>
+        <div class="workflow-step">
+          <span class="step-num">05</span>
+          <span class="step-name">Payment</span>
+          <span class="step-desc">Record payments. Track overdue. Export for tax season.</span>
+        </div>
+        <div class="workflow-step">
+          <span class="step-num">06</span>
+          <span class="step-name">Follow-up</span>
+          <span class="step-desc">Reminders, recurring tasks, automated notifications.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ FEATURES ═══════════ -->
+  <section id="features">
+    <div class="container">
+      <div class="section-label">// features</div>
+      <h2 class="section-title">Everything you need.<br>Nothing you don't.</h2>
+      <p class="section-desc">
+        Built by a freelancer, for freelancers. Every feature solves a real problem.
+      </p>
+
+      <div class="features-grid stagger fade-in">
+        <div class="feature-card">
+          <div class="feature-icon">&#60;Client /&#62;</div>
+          <h3>Client Management</h3>
+          <p>Companies and individuals. Contact details, VAT IDs, notes, and full relationship history at a glance.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#60;Time /&#62;</div>
+          <h3>Time Tracking</h3>
+          <p>Log hours with start/stop or manual entry. Billable vs. non-billable. Automatically flows into invoices.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#60;Invoice /&#62;</div>
+          <h3>Invoicing &amp; PDF</h3>
+          <p>German-compliant invoices with auto-numbering, VAT calculation, and professional PDF generation. Send via email.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#60;Remind /&#62;</div>
+          <h3>Reminders &amp; Tasks</h3>
+          <p>Attach reminders to any entity. Recurring schedules for maintenance contracts. Never miss a follow-up.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#60;Export /&#62;</div>
+          <h3>Tax-Ready Exports</h3>
+          <p>Export by date range. VAT summaries. Income reports by month, quarter, or year. Your accountant will thank you.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#60;API /&#62;</div>
+          <h3>REST API</h3>
+          <p>Full CRUD API with Sanctum auth. Integrate with your tools, scripts, or AI assistants. 60 req/min rate limiting.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#60;Mail /&#62;</div>
+          <h3>Email Integration</h3>
+          <p>Send offers and invoices directly. Payment reminders. Queued delivery with failure tracking and retry.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#60;Dash /&#62;</div>
+          <h3>Dashboard</h3>
+          <p>Open invoices, monthly revenue, active projects. Quick actions and upcoming reminders. All at a glance.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#60;Lock /&#62;</div>
+          <h3>Privacy First</h3>
+          <p>Self-hosted on your infrastructure. No third-party data sharing. User-scoped data isolation. Your data, your rules.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ HIGHLIGHTS ═══════════ -->
+  <section>
+    <div class="container">
+      <div class="highlights-grid stagger fade-in">
+        <div class="highlight-item">
+          <span class="hi-num">0</span>
+          <h3>Monthly fees</h3>
+          <p>Self-hosted, open source. No per-seat pricing. No subscription traps. Run it on a 5&euro;/month VPS.</p>
+        </div>
+        <div class="highlight-item">
+          <span class="hi-num">&lt;5m</span>
+          <h3>Deploy time</h3>
+          <p>Docker image pulls from GHCR. One compose file. Environment variables. Done.</p>
+        </div>
+        <div class="highlight-item">
+          <span class="hi-num">DE</span>
+          <h3>Tax compliant</h3>
+          <p>German locale, EUR currency, Leistungszeitraum, VAT calculation, sequential invoice numbering. Built-in.</p>
+        </div>
+        <div class="highlight-item">
+          <span class="hi-num">API</span>
+          <h3>Scriptable</h3>
+          <p>REST API for everything. Automate with cron jobs, AI agents, or custom integrations. Your CRM, programmable.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ TECH STACK ═══════════ -->
+  <section id="stack">
+    <div class="container">
+      <div class="section-label">// stack</div>
+      <h2 class="section-title">Built on proven tools.</h2>
+      <p class="section-desc">
+        No experimental frameworks. No vendor lock-in. Battle-tested technologies you already know.
+      </p>
+
+      <div class="stack-grid stagger fade-in">
+        <div class="stack-item">
+          <span class="stack-name">Laravel</span>
+          <span class="stack-ver">v12</span>
+        </div>
+        <div class="stack-item">
+          <span class="stack-name">Filament</span>
+          <span class="stack-ver">v4</span>
+        </div>
+        <div class="stack-item">
+          <span class="stack-name">PHP</span>
+          <span class="stack-ver">8.4+</span>
+        </div>
+        <div class="stack-item">
+          <span class="stack-name">Livewire</span>
+          <span class="stack-ver">v3</span>
+        </div>
+        <div class="stack-item">
+          <span class="stack-name">Tailwind CSS</span>
+          <span class="stack-ver">v4</span>
+        </div>
+        <div class="stack-item">
+          <span class="stack-name">MariaDB</span>
+          <span class="stack-ver">11</span>
+        </div>
+        <div class="stack-item">
+          <span class="stack-name">Docker</span>
+          <span class="stack-ver">compose</span>
+        </div>
+        <div class="stack-item">
+          <span class="stack-name">Sanctum</span>
+          <span class="stack-ver">auth</span>
+        </div>
+        <div class="stack-item">
+          <span class="stack-name">DomPDF</span>
+          <span class="stack-ver">pdf gen</span>
+        </div>
+        <div class="stack-item">
+          <span class="stack-name">Pest</span>
+          <span class="stack-ver">v4 testing</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ DEPLOY ═══════════ -->
+  <section id="deploy">
+    <div class="container">
+      <div class="section-label">// deploy</div>
+      <h2 class="section-title">Two ways to ship it.</h2>
+      <p class="section-desc">
+        Pre-built images on GHCR. No local build step required.
+      </p>
+
+      <div class="deploy-grid fade-in">
+        <div class="deploy-card">
+          <h3>Docker Compose</h3>
+          <p>Direct CLI deployment. Pull, configure, run.</p>
+          <pre><span class="prompt">$</span> <span class="cmd">cp .env.example .env.prod</span>
+<span class="prompt">$</span> <span class="cmd">nano .env.prod</span>
+<span class="prompt">$</span> <span class="cmd">docker compose \
+  -f docker-compose.prod.yml \
+  --env-file .env.prod up -d</span></pre>
+        </div>
+        <div class="deploy-card">
+          <h3>Portainer Stack</h3>
+          <p>GUI deployment with Traefik reverse proxy integration.</p>
+          <pre><span class="comment"># 1. Create stack in Portainer UI</span>
+<span class="comment"># 2. Paste docker-compose.portainer.yml</span>
+<span class="comment"># 3. Set environment variables:</span>
+   APP_KEY, APP_URL, APP_DOMAIN
+   DB_PASSWORD, DB_ROOT_PASSWORD
+<span class="comment"># 4. Deploy stack</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ CTA ═══════════ -->
+  <section class="cta-section">
+    <div class="container">
+      <h2 class="section-title">Ready to take control?</h2>
+      <p>Clone the repo. Deploy in minutes. Own your business data.</p>
+      <div class="hero-actions">
+        <a href="https://github.com/reneweiser/freelancer-crm" class="btn-primary">
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 Freelancer<span style="color:var(--green)">CRM</span> &mdash; Open Source under MIT</p>
+      <ul class="footer-links">
+        <li><a href="https://github.com/reneweiser/freelancer-crm">Source</a></li>
+        <li><a href="https://github.com/reneweiser/freelancer-crm/issues">Issues</a></li>
+        <li><a href="https://github.com/reneweiser/freelancer-crm/wiki">Docs</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <!-- ═══════════ SCROLL ANIMATION ═══════════ -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+            }
+          });
+        },
+        { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+      );
+
+      document.querySelectorAll('.fade-in, .stagger').forEach((el) => {
+        observer.observe(el);
+      });
+    });
+  </script>
+
+</body>
+</html>
