@@ -6,7 +6,9 @@ use App\Enums\InvoiceStatus;
 use App\Enums\ProjectStatus;
 use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\RecurringTask;
 use App\Models\Reminder;
+use App\Models\TimeEntry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -29,11 +31,19 @@ class StatsController extends ApiController
         // Reminder stats
         $reminders = $this->getReminderStats($userId);
 
+        // Time tracking stats
+        $timeTracking = $this->getTimeTrackingStats($userId);
+
+        // Recurring task stats
+        $recurringTasks = $this->getRecurringTaskStats($userId);
+
         return $this->success([
             'revenue' => $revenue,
             'projects' => $projects,
             'invoices' => $invoices,
             'reminders' => $reminders,
+            'time_tracking' => $timeTracking,
+            'recurring_tasks' => $recurringTasks,
             'year' => $year,
             'generated_at' => now()->toIso8601String(),
         ]);
@@ -151,6 +161,59 @@ class StatsController extends ApiController
                 'normal' => $query->clone()->pending()->where('priority', 'normal')->count(),
                 'low' => $query->clone()->pending()->where('priority', 'low')->count(),
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getTimeTrackingStats(int $userId): array
+    {
+        $query = TimeEntry::query()
+            ->where('user_id', $userId)
+            ->thisMonth();
+
+        $totalMinutes = (int) $query->clone()->sum('duration_minutes');
+        $billableMinutes = (int) $query->clone()->billable()->sum('duration_minutes');
+        $nonBillableMinutes = (int) $query->clone()->nonBillable()->sum('duration_minutes');
+
+        // Calculate unbilled amount across all hourly projects
+        $unbilledAmount = 0.0;
+        $hourlyProjects = Project::query()
+            ->where('user_id', $userId)
+            ->where('type', 'hourly')
+            ->whereNotNull('hourly_rate')
+            ->get();
+
+        foreach ($hourlyProjects as $project) {
+            $unbilledMinutes = (int) $project->timeEntries()
+                ->billable()
+                ->unbilled()
+                ->sum('duration_minutes');
+            $unbilledAmount += round(($unbilledMinutes / 60) * (float) $project->hourly_rate, 2);
+        }
+
+        return [
+            'total_hours_this_month' => round($totalMinutes / 60, 2),
+            'billable_hours_this_month' => round($billableMinutes / 60, 2),
+            'non_billable_hours_this_month' => round($nonBillableMinutes / 60, 2),
+            'unbilled_amount' => $unbilledAmount,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getRecurringTaskStats(int $userId): array
+    {
+        $query = RecurringTask::withoutGlobalScope('user')
+            ->where('user_id', $userId);
+
+        return [
+            'total_active' => $query->clone()->active()->count(),
+            'total_inactive' => $query->clone()->inactive()->count(),
+            'overdue' => $query->clone()->overdue()->count(),
+            'due_soon' => $query->clone()->dueSoon()->count(),
         ];
     }
 }

@@ -4,8 +4,10 @@ use App\Http\Controllers\Api\V1\AiController;
 use App\Http\Controllers\Api\V1\ClientController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\RecurringTaskController;
 use App\Http\Controllers\Api\V1\ReminderController;
 use App\Http\Controllers\Api\V1\StatsController;
+use App\Http\Controllers\Api\V1\TimeEntryController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
@@ -30,6 +32,24 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
         ->name('reminders.complete');
     Route::post('reminders/{reminder}/snooze', [ReminderController::class, 'snooze'])
         ->name('reminders.snooze');
+
+    // Time Entries
+    Route::apiResource('time-entries', TimeEntryController::class);
+    Route::post('time-entries/start', [TimeEntryController::class, 'start'])
+        ->name('time-entries.start');
+    Route::post('time-entries/{timeEntry}/stop', [TimeEntryController::class, 'stop'])
+        ->name('time-entries.stop');
+
+    // Recurring Tasks
+    Route::apiResource('recurring-tasks', RecurringTaskController::class);
+    Route::post('recurring-tasks/{recurringTask}/pause', [RecurringTaskController::class, 'pause'])
+        ->name('recurring-tasks.pause');
+    Route::post('recurring-tasks/{recurringTask}/resume', [RecurringTaskController::class, 'resume'])
+        ->name('recurring-tasks.resume');
+    Route::post('recurring-tasks/{recurringTask}/skip', [RecurringTaskController::class, 'skip'])
+        ->name('recurring-tasks.skip');
+    Route::post('recurring-tasks/{recurringTask}/advance', [RecurringTaskController::class, 'advance'])
+        ->name('recurring-tasks.advance');
 
     // AI Helper Endpoints
     Route::get('stats', [StatsController::class, 'index'])->name('stats.index');

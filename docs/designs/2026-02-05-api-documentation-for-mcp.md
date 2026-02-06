@@ -86,6 +86,13 @@ Authorization: Bearer {sanctum-token}
 | `SYSTEM_REMINDER` | 422 | System reminders cannot be updated |
 | `ALREADY_COMPLETED` | 422 | Reminder already completed |
 | `BATCH_FAILED` | 422 | Batch operation failed (all rolled back) |
+| `PROJECT_NOT_HOURLY` | 422 | Time entries require hourly project type |
+| `TIME_ENTRY_INVOICED` | 422 | Cannot modify invoiced time entries |
+| `TIMER_ALREADY_RUNNING` | 422 | User already has a running timer |
+| `TIMER_NOT_RUNNING` | 422 | Time entry is not a running timer |
+| `TASK_ALREADY_PAUSED` | 422 | Recurring task is already inactive |
+| `TASK_ALREADY_ACTIVE` | 422 | Recurring task is already active |
+| `TASK_NOT_ACTIVE` | 422 | Cannot skip/advance inactive task |
 
 ---
 
@@ -144,6 +151,14 @@ Authorization: Bearer {sanctum-token}
 | `Client` | Attached to a client |
 | `Project` | Attached to a project |
 | `Invoice` | Attached to an invoice |
+
+### TaskFrequency
+| Value | Label (DE) | Description |
+|-------|------------|-------------|
+| `weekly` | Wöchentlich | Repeats every week |
+| `monthly` | Monatlich | Repeats every month |
+| `quarterly` | Vierteljährlich | Repeats every quarter |
+| `yearly` | Jährlich | Repeats every year |
 
 ---
 
@@ -891,6 +906,371 @@ POST /api/v1/reminders/{id}/snooze
 
 ---
 
+## Time Entries API
+
+### List Time Entries
+
+```
+GET /api/v1/time-entries
+```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `search` | string | No | Search by description |
+| `project_id` | integer | No | Filter by project ID |
+| `billable` | boolean | No | Filter by billable status |
+| `invoiced` | boolean | No | Filter by invoiced status (true=invoiced, false=unbilled) |
+| `date_from` | date | No | Filter entries from this date |
+| `date_to` | date | No | Filter entries up to this date |
+| `per_page` | integer | No | Items per page (default: 15, max: 100) |
+| `page` | integer | No | Page number |
+
+**Response:** Paginated list of `TimeEntryResource` (includes project, ordered by started_at desc)
+
+---
+
+### Get Time Entry
+
+```
+GET /api/v1/time-entries/{id}
+```
+
+**Response:** Single `TimeEntryResource` with project
+
+---
+
+### Create Time Entry
+
+```
+POST /api/v1/time-entries
+```
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `project_id` | integer | Yes | Project ID (must be hourly and belong to user) |
+| `description` | string | No | Work description (max 500 chars) |
+| `started_at` | datetime | Yes | Start time (ISO 8601) |
+| `ended_at` | datetime | No | End time (must be after started_at) |
+| `duration_minutes` | integer | No | Manual duration in minutes (min: 1) |
+| `billable` | boolean | No | Whether this time is billable |
+
+**Response:** Created `TimeEntryResource` (HTTP 201)
+
+**Error:** Returns `PROJECT_NOT_HOURLY` if the project is not hourly type.
+
+**Example Request:**
+```json
+{
+  "project_id": 5,
+  "description": "Frontend development",
+  "started_at": "2026-02-06T09:00:00+00:00",
+  "ended_at": "2026-02-06T11:30:00+00:00",
+  "billable": true
+}
+```
+
+---
+
+### Update Time Entry
+
+```
+PUT /api/v1/time-entries/{id}
+PATCH /api/v1/time-entries/{id}
+```
+
+**Restrictions:** Invoiced time entries cannot be updated.
+
+**Request Body:** Same as Create Time Entry (all fields optional)
+
+**Response:** Updated `TimeEntryResource`
+
+**Error:** Returns `TIME_ENTRY_INVOICED` if the entry is linked to an invoice.
+
+---
+
+### Delete Time Entry
+
+```
+DELETE /api/v1/time-entries/{id}
+```
+
+**Restrictions:** Invoiced time entries cannot be deleted.
+
+**Error:** Returns `TIME_ENTRY_INVOICED` if the entry is linked to an invoice.
+
+---
+
+### Start Timer
+
+```
+POST /api/v1/time-entries/start
+```
+
+Creates a new time entry with `started_at` set to now. Only one timer can be running per user at a time.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `project_id` | integer | Yes | Project ID (must be hourly and belong to user) |
+| `description` | string | No | Work description (max 500 chars) |
+
+**Response:** Created `TimeEntryResource` with `is_running: true` (HTTP 201)
+
+**Errors:**
+- `PROJECT_NOT_HOURLY`: Project is not hourly type
+- `TIMER_ALREADY_RUNNING`: User already has a running timer
+
+**Example Request:**
+```json
+{
+  "project_id": 5,
+  "description": "Working on feature"
+}
+```
+
+---
+
+### Stop Timer
+
+```
+POST /api/v1/time-entries/{id}/stop
+```
+
+Sets `ended_at` to now. The model automatically calculates `duration_minutes` on save.
+
+**Response:** Updated `TimeEntryResource` with `is_running: false`
+
+**Error:** Returns `TIMER_NOT_RUNNING` if the entry is not currently running.
+
+---
+
+### TimeEntryResource Schema
+
+```json
+{
+  "id": 1,
+  "project_id": 5,
+  "invoice_id": null,
+  "description": "Working on API endpoints",
+  "started_at": "2026-02-06T09:00:00+00:00",
+  "ended_at": "2026-02-06T11:30:00+00:00",
+  "duration_minutes": 150,
+  "duration_hours": 2.5,
+  "formatted_duration": "2 Std. 30 Min.",
+  "billable": true,
+  "is_invoiced": false,
+  "is_running": false,
+  "created_at": "2026-02-06T09:00:00+00:00",
+  "updated_at": "2026-02-06T11:30:00+00:00",
+  "project": { /* ProjectResource */ },
+  "invoice": null
+}
+```
+
+---
+
+## Recurring Tasks API
+
+### List Recurring Tasks
+
+```
+GET /api/v1/recurring-tasks
+```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `search` | string | No | Search by title or description |
+| `client_id` | integer | No | Filter by client ID |
+| `frequency` | string | No | Filter by frequency (see TaskFrequency enum) |
+| `active` | boolean | No | Filter by active status |
+| `overdue` | boolean | No | Filter overdue tasks only (set to `true`) |
+| `per_page` | integer | No | Items per page (default: 15, max: 100) |
+| `page` | integer | No | Page number |
+
+**Response:** Paginated list of `RecurringTaskResource` (includes client, ordered by next_due_at)
+
+---
+
+### Get Recurring Task
+
+```
+GET /api/v1/recurring-tasks/{id}
+```
+
+**Response:** Single `RecurringTaskResource` with client and recent logs (last 10)
+
+---
+
+### Create Recurring Task
+
+```
+POST /api/v1/recurring-tasks
+```
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `title` | string | Yes | Task title (max 255 chars) |
+| `description` | string | No | Detailed description |
+| `frequency` | string | Yes | `weekly`, `monthly`, `quarterly`, or `yearly` |
+| `next_due_at` | date | Yes | Next due date (YYYY-MM-DD) |
+| `client_id` | integer | No | Client ID (must belong to user) |
+| `started_at` | date | No | Task start date |
+| `ends_at` | date | No | Task end date (must be >= started_at) |
+| `amount` | decimal | No | Amount (min: 0) |
+| `billing_notes` | string | No | Billing notes (max 500 chars) |
+| `active` | boolean | No | Active status (default: true via DB) |
+
+**Response:** Created `RecurringTaskResource` (HTTP 201)
+
+**Example Request:**
+```json
+{
+  "title": "Monthly Server Backup",
+  "description": "Full server backup and verification",
+  "frequency": "monthly",
+  "next_due_at": "2026-03-01",
+  "client_id": 3,
+  "amount": 150.00,
+  "billing_notes": "Flat rate"
+}
+```
+
+---
+
+### Update Recurring Task
+
+```
+PUT /api/v1/recurring-tasks/{id}
+PATCH /api/v1/recurring-tasks/{id}
+```
+
+**Request Body:** Same as Create Recurring Task (all fields optional)
+
+**Response:** Updated `RecurringTaskResource`
+
+---
+
+### Delete Recurring Task
+
+```
+DELETE /api/v1/recurring-tasks/{id}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": { "deleted": true }
+}
+```
+
+---
+
+### Pause Recurring Task
+
+```
+POST /api/v1/recurring-tasks/{id}/pause
+```
+
+Deactivates the task. No new reminders will be generated.
+
+**Response:** Updated `RecurringTaskResource` with `active: false`
+
+**Error:** Returns `TASK_ALREADY_PAUSED` if task is already inactive.
+
+---
+
+### Resume Recurring Task
+
+```
+POST /api/v1/recurring-tasks/{id}/resume
+```
+
+Reactivates the task. If `next_due_at` is in the past, it is automatically advanced to the next future occurrence.
+
+**Response:** Updated `RecurringTaskResource` with `active: true`
+
+**Error:** Returns `TASK_ALREADY_ACTIVE` if task is already active.
+
+---
+
+### Skip Occurrence
+
+```
+POST /api/v1/recurring-tasks/{id}/skip
+```
+
+Skips the current occurrence and advances to the next due date. Creates a log entry with action `skipped`.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `reason` | string | No | Reason for skipping |
+
+**Response:** Updated `RecurringTaskResource`
+
+**Error:** Returns `TASK_NOT_ACTIVE` if task is inactive.
+
+---
+
+### Advance Recurring Task
+
+```
+POST /api/v1/recurring-tasks/{id}/advance
+```
+
+Advances the task to its next due date. Sets `last_run_at` to the current `next_due_at` and calculates the new `next_due_at` based on frequency.
+
+**Response:** Updated `RecurringTaskResource`
+
+**Error:** Returns `TASK_NOT_ACTIVE` if task is inactive.
+
+---
+
+### RecurringTaskResource Schema
+
+```json
+{
+  "id": 1,
+  "client_id": 3,
+  "title": "Website-Wartung",
+  "description": "Monthly maintenance tasks",
+  "frequency": "monthly",
+  "frequency_label": "Monatlich",
+  "frequency_color": "primary",
+  "next_due_at": "2026-03-01",
+  "last_run_at": "2026-02-01",
+  "started_at": "2025-01-01",
+  "ends_at": "2027-01-01",
+  "amount": 150.00,
+  "formatted_amount": "150,00 \u20ac",
+  "billing_notes": "Flat rate",
+  "active": true,
+  "is_overdue": false,
+  "is_due_soon": false,
+  "has_ended": false,
+  "created_at": "2025-01-01T10:00:00+00:00",
+  "updated_at": "2026-02-01T10:00:00+00:00",
+  "client": { /* ClientResource */ },
+  "logs": [
+    {
+      "id": 1,
+      "due_date": "2026-02-01",
+      "action": "reminder_created",
+      "reminder_id": 42,
+      "notes": null,
+      "created_at": "2026-02-01T09:00:00+00:00"
+    }
+  ]
+}
+```
+
+---
+
 ## Stats API
 
 ### Get Dashboard Statistics
@@ -954,6 +1334,18 @@ GET /api/v1/stats
         "low": 2
       }
     },
+    "time_tracking": {
+      "total_hours_this_month": 120.5,
+      "billable_hours_this_month": 98.25,
+      "non_billable_hours_this_month": 22.25,
+      "unbilled_amount": 8750.00
+    },
+    "recurring_tasks": {
+      "total_active": 8,
+      "total_inactive": 2,
+      "overdue": 1,
+      "due_soon": 3
+    },
     "year": 2026,
     "generated_at": "2026-02-05T14:30:00+00:00"
   }
@@ -981,7 +1373,7 @@ Execute multiple operations in a single atomic transaction. If any operation fai
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `action` | string | Yes | Operation action (see below) |
-| `resource` | string | Yes | Resource type: `client(s)`, `project(s)`, `invoice(s)`, `reminder(s)` |
+| `resource` | string | Yes | Resource type: `client(s)`, `project(s)`, `invoice(s)`, `reminder(s)`, `time_entry`/`time_entries`, `recurring_task`/`recurring_tasks` |
 | `data` | object | Conditional | Data for create/update operations |
 | `id` | mixed | Conditional | Resource ID for update/delete operations |
 
@@ -993,6 +1385,8 @@ Execute multiple operations in a single atomic transaction. If any operation fai
 | `project` / `projects` | `create`, `update`, `delete`, `transition` |
 | `invoice` / `invoices` | `create`, `from_project`, `mark_paid`, `delete` |
 | `reminder` / `reminders` | `create`, `update`, `delete`, `complete`, `snooze` |
+| `time_entry` / `time_entries` | `create`, `update`, `delete`, `start`, `stop` |
+| `recurring_task` / `recurring_tasks` | `create`, `update`, `delete`, `pause`, `resume`, `skip`, `advance` |
 
 **Reference System:**
 Use `$ref:` prefix to reference IDs from previous operations in the batch.
@@ -1187,6 +1581,22 @@ Based on this API, an MCP server should implement these tools:
 | `crm_create_reminder` | `POST /reminders` | Create reminder |
 | `crm_complete_reminder` | `POST /reminders/{id}/complete` | Mark reminder complete |
 | `crm_snooze_reminder` | `POST /reminders/{id}/snooze` | Snooze reminder |
+| `crm_list_time_entries` | `GET /time-entries` | List/filter time entries |
+| `crm_get_time_entry` | `GET /time-entries/{id}` | Get time entry details |
+| `crm_create_time_entry` | `POST /time-entries` | Create time entry |
+| `crm_update_time_entry` | `PUT /time-entries/{id}` | Update time entry |
+| `crm_delete_time_entry` | `DELETE /time-entries/{id}` | Delete time entry |
+| `crm_start_timer` | `POST /time-entries/start` | Start live timer |
+| `crm_stop_timer` | `POST /time-entries/{id}/stop` | Stop running timer |
+| `crm_list_recurring_tasks` | `GET /recurring-tasks` | List/filter recurring tasks |
+| `crm_get_recurring_task` | `GET /recurring-tasks/{id}` | Get task with logs |
+| `crm_create_recurring_task` | `POST /recurring-tasks` | Create recurring task |
+| `crm_update_recurring_task` | `PUT /recurring-tasks/{id}` | Update recurring task |
+| `crm_delete_recurring_task` | `DELETE /recurring-tasks/{id}` | Delete recurring task |
+| `crm_pause_recurring_task` | `POST /recurring-tasks/{id}/pause` | Pause task |
+| `crm_resume_recurring_task` | `POST /recurring-tasks/{id}/resume` | Resume task |
+| `crm_skip_recurring_task` | `POST /recurring-tasks/{id}/skip` | Skip current occurrence |
+| `crm_advance_recurring_task` | `POST /recurring-tasks/{id}/advance` | Advance to next due date |
 | `crm_get_stats` | `GET /stats` | Get dashboard statistics |
 | `crm_batch` | `POST /batch` | Execute multiple operations atomically |
 | `crm_validate` | `POST /validate` | Validate operations before executing |
@@ -1221,6 +1631,20 @@ Implement exponential backoff when receiving HTTP 429 responses. The rate limit 
    - Use `crm_get_stats` for overview
    - Use `crm_list_reminders` with `status=pending` and `upcoming_days=7`
 
-4. **Complex Operations:**
+4. **Track Time on Project:**
+   - Use `crm_start_timer` with project_id to begin work
+   - Use `crm_stop_timer` when done (duration auto-calculated)
+   - Use `crm_list_time_entries` with `billable=true&invoiced=false` to see unbilled work
+
+5. **Set Up Recurring Maintenance:**
+   - Use `crm_create_recurring_task` with client_id, frequency, next_due_at
+   - System auto-creates reminders when tasks come due
+   - Use `crm_skip_recurring_task` with reason if client is unavailable
+
+6. **Monthly Hours Summary:**
+   - Use `crm_get_stats` for `time_tracking.billable_hours_this_month` and `unbilled_amount`
+   - Use `crm_list_time_entries` with `date_from` and `date_to` for detailed breakdown
+
+7. **Complex Operations:**
    - Use `crm_batch` for atomic multi-resource operations
    - Use `crm_validate` first to check for errors

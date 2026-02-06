@@ -6,8 +6,11 @@ use App\Enums\ProjectStatus;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\RecurringTask;
 use App\Models\Reminder;
+use App\Models\TimeEntry;
 use App\Services\InvoiceCreationService;
+use App\Services\RecurringTaskService;
 use App\Services\SettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -141,6 +144,8 @@ class AiController extends ApiController
             'project', 'projects' => $this->handleProjectOperation($user, $action, $data, $id),
             'invoice', 'invoices' => $this->handleInvoiceOperation($user, $action, $data, $id),
             'reminder', 'reminders' => $this->handleReminderOperation($user, $action, $data, $id),
+            'time_entry', 'time_entries' => $this->handleTimeEntryOperation($user, $action, $data, $id),
+            'recurring_task', 'recurring_tasks' => $this->handleRecurringTaskOperation($user, $action, $data, $id),
             default => throw new \InvalidArgumentException("Unknown resource: {$resource}"),
         };
     }
@@ -162,14 +167,14 @@ class AiController extends ApiController
         $warnings = [];
 
         // Validate resource type
-        if (! in_array($resource, ['client', 'clients', 'project', 'projects', 'invoice', 'invoices', 'reminder', 'reminders'])) {
+        if (! in_array($resource, ['client', 'clients', 'project', 'projects', 'invoice', 'invoices', 'reminder', 'reminders', 'time_entry', 'time_entries', 'recurring_task', 'recurring_tasks'])) {
             $errors[] = "Unknown resource: {$resource}";
 
             return ['valid' => false, 'errors' => $errors];
         }
 
         // Validate action
-        $validActions = ['create', 'update', 'delete', 'transition', 'from_project', 'mark_paid', 'complete', 'snooze'];
+        $validActions = ['create', 'update', 'delete', 'transition', 'from_project', 'mark_paid', 'complete', 'snooze', 'start', 'stop', 'pause', 'resume', 'skip', 'advance'];
         if (! in_array($action, $validActions)) {
             $errors[] = "Unknown action: {$action}. Valid actions: ".implode(', ', $validActions);
 
@@ -177,7 +182,7 @@ class AiController extends ApiController
         }
 
         // Validate ID for update/delete actions
-        if (in_array($action, ['update', 'delete', 'transition', 'mark_paid', 'complete', 'snooze'])) {
+        if (in_array($action, ['update', 'delete', 'transition', 'mark_paid', 'complete', 'snooze', 'stop', 'pause', 'resume', 'skip', 'advance'])) {
             if (empty($id) && ! str_starts_with((string) $id, '$ref:')) {
                 $errors[] = 'ID is required for '.$action.' action.';
             }
@@ -189,6 +194,8 @@ class AiController extends ApiController
             'project', 'projects' => $this->validateProjectData($user, $action, $data),
             'invoice', 'invoices' => $this->validateInvoiceData($user, $action, $data),
             'reminder', 'reminders' => $this->validateReminderData($action, $data),
+            'time_entry', 'time_entries' => $this->validateTimeEntryData($action, $data),
+            'recurring_task', 'recurring_tasks' => $this->validateRecurringTaskData($action, $data),
             default => ['errors' => [], 'warnings' => []],
         };
 
@@ -559,6 +566,276 @@ class AiController extends ApiController
         return ['data' => ['id' => $reminder->id, 'snoozed' => true]];
     }
 
+    // Time Entry operations
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function handleTimeEntryOperation($user, string $action, array $data, $id): array
+    {
+        return match ($action) {
+            'create' => $this->createTimeEntry($user, $data),
+            'update' => $this->updateTimeEntry($user, $id, $data),
+            'delete' => $this->deleteTimeEntry($user, $id),
+            'start' => $this->startTimeEntry($user, $data),
+            'stop' => $this->stopTimeEntry($user, $id),
+            default => throw new \InvalidArgumentException("Invalid action for time_entry: {$action}"),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function createTimeEntry($user, array $data): array
+    {
+        $project = Project::where('user_id', $user->id)->findOrFail($data['project_id']);
+
+        if (! $project->isHourly()) {
+            throw new \InvalidArgumentException('Time entries can only be added to hourly projects.');
+        }
+
+        $entry = TimeEntry::create([
+            ...$data,
+            'user_id' => $user->id,
+        ]);
+
+        return [
+            'data' => ['id' => $entry->id, 'type' => 'time_entry'],
+            'ref' => $data['$ref'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function updateTimeEntry($user, $id, array $data): array
+    {
+        $entry = TimeEntry::where('user_id', $user->id)->findOrFail($id);
+
+        if ($entry->isInvoiced()) {
+            throw new \InvalidArgumentException('Cannot update an invoiced time entry.');
+        }
+
+        $entry->update($data);
+
+        return ['data' => ['id' => $entry->id, 'type' => 'time_entry']];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function deleteTimeEntry($user, $id): array
+    {
+        $entry = TimeEntry::where('user_id', $user->id)->findOrFail($id);
+
+        if ($entry->isInvoiced()) {
+            throw new \InvalidArgumentException('Cannot delete an invoiced time entry.');
+        }
+
+        $entry->delete();
+
+        return ['data' => ['id' => $id, 'deleted' => true]];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function startTimeEntry($user, array $data): array
+    {
+        $project = Project::where('user_id', $user->id)->findOrFail($data['project_id']);
+
+        if (! $project->isHourly()) {
+            throw new \InvalidArgumentException('Time entries can only be added to hourly projects.');
+        }
+
+        $running = TimeEntry::where('user_id', $user->id)
+            ->whereNotNull('started_at')
+            ->whereNull('ended_at')
+            ->whereNull('duration_minutes')
+            ->exists();
+
+        if ($running) {
+            throw new \InvalidArgumentException('You already have a running timer.');
+        }
+
+        $entry = TimeEntry::create([
+            'user_id' => $user->id,
+            'project_id' => $project->id,
+            'description' => $data['description'] ?? null,
+            'started_at' => now(),
+            'billable' => true,
+        ]);
+
+        return [
+            'data' => ['id' => $entry->id, 'type' => 'time_entry'],
+            'ref' => $data['$ref'] ?? null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function stopTimeEntry($user, $id): array
+    {
+        $entry = TimeEntry::where('user_id', $user->id)->findOrFail($id);
+
+        $isRunning = $entry->started_at !== null && $entry->ended_at === null && $entry->duration_minutes === null;
+
+        if (! $isRunning) {
+            throw new \InvalidArgumentException('This time entry is not currently running.');
+        }
+
+        $entry->update(['ended_at' => now()]);
+
+        return ['data' => ['id' => $entry->id, 'type' => 'time_entry']];
+    }
+
+    // Recurring Task operations
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function handleRecurringTaskOperation($user, string $action, array $data, $id): array
+    {
+        return match ($action) {
+            'create' => $this->createRecurringTask($user, $data),
+            'update' => $this->updateRecurringTask($user, $id, $data),
+            'delete' => $this->deleteRecurringTask($user, $id),
+            'pause' => $this->pauseRecurringTask($user, $id),
+            'resume' => $this->resumeRecurringTask($user, $id),
+            'skip' => $this->skipRecurringTask($user, $id, $data),
+            'advance' => $this->advanceRecurringTask($user, $id),
+            default => throw new \InvalidArgumentException("Invalid action for recurring_task: {$action}"),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function createRecurringTask($user, array $data): array
+    {
+        if (! empty($data['client_id'])) {
+            Client::where('user_id', $user->id)->findOrFail($data['client_id']);
+        }
+
+        $task = RecurringTask::withoutGlobalScope('user')->create([
+            ...$data,
+            'user_id' => $user->id,
+        ]);
+
+        return [
+            'data' => ['id' => $task->id, 'type' => 'recurring_task'],
+            'ref' => $data['$ref'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function updateRecurringTask($user, $id, array $data): array
+    {
+        $task = RecurringTask::withoutGlobalScope('user')
+            ->where('user_id', $user->id)
+            ->findOrFail($id);
+        $task->update($data);
+
+        return ['data' => ['id' => $task->id, 'type' => 'recurring_task']];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function deleteRecurringTask($user, $id): array
+    {
+        $task = RecurringTask::withoutGlobalScope('user')
+            ->where('user_id', $user->id)
+            ->findOrFail($id);
+        $task->delete();
+
+        return ['data' => ['id' => $id, 'deleted' => true]];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function pauseRecurringTask($user, $id): array
+    {
+        $task = RecurringTask::withoutGlobalScope('user')
+            ->where('user_id', $user->id)
+            ->findOrFail($id);
+
+        if (! $task->active) {
+            throw new \InvalidArgumentException('Task is already paused.');
+        }
+
+        $task->pause();
+
+        return ['data' => ['id' => $task->id, 'paused' => true]];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resumeRecurringTask($user, $id): array
+    {
+        $task = RecurringTask::withoutGlobalScope('user')
+            ->where('user_id', $user->id)
+            ->findOrFail($id);
+
+        if ($task->active) {
+            throw new \InvalidArgumentException('Task is already active.');
+        }
+
+        $task->resume();
+
+        return ['data' => ['id' => $task->id, 'resumed' => true]];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function skipRecurringTask($user, $id, array $data): array
+    {
+        $task = RecurringTask::withoutGlobalScope('user')
+            ->where('user_id', $user->id)
+            ->findOrFail($id);
+
+        if (! $task->active) {
+            throw new \InvalidArgumentException('Cannot skip an inactive task.');
+        }
+
+        $service = app(RecurringTaskService::class);
+        $service->skipOccurrence($task, $data['reason'] ?? null);
+
+        return ['data' => ['id' => $task->id, 'skipped' => true]];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function advanceRecurringTask($user, $id): array
+    {
+        $task = RecurringTask::withoutGlobalScope('user')
+            ->where('user_id', $user->id)
+            ->findOrFail($id);
+
+        if (! $task->active) {
+            throw new \InvalidArgumentException('Cannot advance an inactive task.');
+        }
+
+        $task->advance();
+
+        return ['data' => ['id' => $task->id, 'advanced' => true]];
+    }
+
     // Validation helpers
 
     /**
@@ -667,6 +944,58 @@ class AiController extends ApiController
 
             if (empty($data['due_at'])) {
                 $errors[] = 'Due date is required.';
+            }
+        }
+
+        return ['errors' => $errors, 'warnings' => $warnings];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, array<string>>
+     */
+    private function validateTimeEntryData(string $action, array $data): array
+    {
+        $errors = [];
+        $warnings = [];
+
+        if (in_array($action, ['create', 'start'])) {
+            if (empty($data['project_id'])) {
+                $errors[] = 'Project ID is required.';
+            }
+        }
+
+        if ($action === 'create') {
+            if (empty($data['started_at'])) {
+                $errors[] = 'Start time is required.';
+            }
+        }
+
+        return ['errors' => $errors, 'warnings' => $warnings];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, array<string>>
+     */
+    private function validateRecurringTaskData(string $action, array $data): array
+    {
+        $errors = [];
+        $warnings = [];
+
+        if ($action === 'create') {
+            if (empty($data['title'])) {
+                $errors[] = 'Task title is required.';
+            }
+
+            if (empty($data['frequency'])) {
+                $errors[] = 'Frequency is required.';
+            } elseif (! in_array($data['frequency'], ['weekly', 'monthly', 'quarterly', 'yearly'])) {
+                $errors[] = 'Invalid frequency. Use "weekly", "monthly", "quarterly", or "yearly".';
+            }
+
+            if (empty($data['next_due_at'])) {
+                $errors[] = 'Next due date is required.';
             }
         }
 

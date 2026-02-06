@@ -108,7 +108,7 @@ return Application::configure(basePath: dirname(__DIR__))
                         'message' => 'The requested endpoint does not exist.',
                         'suggestions' => [
                             'Check the URL for typos.',
-                            'Available endpoints: /api/v1/clients, /api/v1/projects, /api/v1/invoices, /api/v1/reminders, /api/v1/stats',
+                            'Available endpoints: /api/v1/clients, /api/v1/projects, /api/v1/invoices, /api/v1/reminders, /api/v1/time-entries, /api/v1/recurring-tasks, /api/v1/stats',
                         ],
                     ],
                 ], 404);
